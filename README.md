@@ -3,7 +3,7 @@ Code for the paper 'Masked Mixers for Language Generation and Retrieval'
 
 ### General Use
 
-`src` contains modular versions of the implementations of masked mixers.
+`src` contains modular versions of the implementations of masked mixers. Currently in development.
 
 ### For Experimental Replication
 
