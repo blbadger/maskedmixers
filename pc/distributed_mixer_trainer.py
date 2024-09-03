@@ -1,25 +1,12 @@
-import os
-
-#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-import prettytable
 from prettytable import PrettyTable
-
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
+from transformers import LlamaForCausalLM
 
 
 def FeedForward(dim, expansion_factor=4):
@@ -119,7 +106,7 @@ class LanguageMixer(nn.Module):
 		return loss, output
 
 # tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
+tokenizer = AutoTokenizer.from_pretrained("/path/to/tiny_token_4k")
 tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
 print (tokenizer.is_fast)
@@ -299,7 +286,7 @@ trainer = transformers.Trainer(
 )
 
 model.train()
-trainer.train() # '/home/bbadger/Desktop/tinystories_mixer_128_f_n8/checkpoint-748000'
+trainer.train()
 
 for name, param in model.named_parameters():
 	print (name)

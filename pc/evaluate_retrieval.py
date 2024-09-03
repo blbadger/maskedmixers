@@ -3,7 +3,7 @@ from safetensors import safe_open
 import torch
 from safetensors.torch import load_model
 
-filepath = '/home/bbadger/Desktop/retrieval_transformer_512_200k.safetensors' 
+filepath = '/path/to/embeddings.safetensors' 
 with safe_open(filepath, framework="pt", device='cpu') as f:
 	target_test_embeddings = f.get_tensor('target_test')
 	print ('targets loaded')
@@ -30,16 +30,3 @@ with torch.no_grad():
 		total_correct += torch.sum(correct)
 		total += len(selections)
 		print (total_correct / total)
-
-# with torch.no_grad():
-# 	total_correct = 0
-# 	for i in range(0, 20000):
-# 		inputs = test_dataset[i]
-# 		inputs['input_ids'] = inputs['input_ids'].unsqueeze(0).to('cuda')
-# 		inputs['labels'] = inputs['labels'].unsqueeze(0).to('cuda')
-# 		_, output = retrieval_model(inputs['input_ids'], labels=inputs['labels'])
-# 		selections = torch.topk(output, 1, dim=1).indices
-# 		correct = int(selections) == int(inputs['labels'])
-# 		if correct:
-# 			total_correct += 1
-# 	print (total_correct / len(test_dataset))

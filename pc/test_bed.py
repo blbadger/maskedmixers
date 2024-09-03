@@ -3,24 +3,9 @@ import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
-import prettytable
-from prettytable import PrettyTable
-
 import torch
-import einops
 from einops import rearrange
-import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
-import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
-
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -65,21 +50,21 @@ class MixerBlock(nn.Module):
 				rearranged_shape = rearrange(self.conv[0].weight, 'f d p -> f (d p)').shape
 				mask = torch.tril(torch.ones(rearranged_shape)).to(device)
 				applied_mask = rearrange(self.conv[0].weight, 'f d p -> f (d p)') * mask
-				print (applied_mask)
 				self.conv[0].weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
 
 				rearranged_shape = rearrange(self.conv[2].weight, 'f d p -> f (d p)').shape
 				mask = torch.tril(torch.ones(rearranged_shape)).to(device)
 				applied_mask = rearrange(self.conv[2].weight, 'f d p -> f (d p)') * mask
-				print (applied_mask)
 				self.conv[2].weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
-				print ('one layer done')
 
 			else:
-				rearranged_shape = rearrange(self.conv.weight, 'f d p -> f (d p)').shape
-				mask = torch.tril(torch.ones(rearranged_shape)).to(device)
-				applied_mask = rearrange(self.conv.weight, 'f d p -> f (d p)') * mask
-				self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
+				# rearranged_shape = rearrange(self.conv.weight, 'f d p -> f (d p)').shape
+				# mask = torch.tril(torch.ones(rearranged_shape)).to(device)
+				# applied_mask = rearrange(self.conv.weight, 'f d p -> f (d p)') * mask
+				# self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
+
+				masked_conv = torch.tril(rearrange(self.conv.weight, 'f d p -> p f d'))
+				self.conv.weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
 
 		residual = x
 		x = self.seq_layernorm(x)
@@ -121,18 +106,14 @@ class LanguageMixer(nn.Module):
 		loss = self.cel(shift_logits, shift_labels)
 		return loss, output
 
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
-tokenizer.pad_token = tokenizer.eos_token
-n_vocab = len(tokenizer)
-print (tokenizer.is_fast)
 
 tokenized_length = 3
 dim = 10
+n_vocab=4096
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = LanguageMixer(n_vocab, dim, 1).float().to(device)
+model = LanguageMixer(n_vocab, dim, 2).float().to(device)
 
 one = torch.tensor([[[1, 2, 3]]]).to(device)
-two = torch.tensor([[[1, 2, 3]]]).to(device)
+two = torch.tensor([[[1, 4, 3]]]).to(device)
 print (model(one, labels=one))
 print (model(two, labels=two))

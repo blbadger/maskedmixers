@@ -4,19 +4,21 @@ from datasets import load_dataset
 from tqdm import tqdm
 
 model = Llama(
-	model_path = '/path/to/llama-3-8b-instruct-Q8_0.gguf',
+	model_path = '/home/bbadger/Desktop/models/llama-3-8b-instruct-Q8_0.gguf',
 	n_gpu_layers = -1,
 	chat_format='llama-3',
 	verbose=False,
 	n_ctx=4096
 	)
 
+# train/validation set: first 100k train examples, first 10k validation examples
 train_text = load_dataset("roneneldan/TinyStories", split="train")
 valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 
+
 batch_size = 16
 outputs = []
-for j in tqdm(range(200000)):
+for j in tqdm(range(300000, 350000)):
 	output = model.create_chat_completion(
 	      messages = [
 	{"role": "system", "content": "You are an assistant for creating summaries for short stories."},
@@ -26,7 +28,8 @@ for j in tqdm(range(200000)):
 	          }
 	]
 	)
+#	print (output['choices'][0])
 	outputs.append(output)
 
-with open('path/to/dump/file.json', 'w') as f:
+with open('/home/bbadger/Desktop/train_output_300_350k.json', 'w') as f:
     json.dump(outputs, f)

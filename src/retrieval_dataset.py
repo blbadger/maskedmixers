@@ -5,12 +5,24 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import os
 import torch
+import einops
 from einops import rearrange
+import transformers
+from transformers import PreTrainedTokenizerFast
+from transformers import TextDataset, Trainer, TrainingArguments
+from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
-from transformers import AutoTokenizer
+import mlflow
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_dataset
+import sentencepiece
+from tokenizers import ByteLevelBPETokenizer
+from transformers import AutoModel
+from safetensors.torch import load_model, save_model, load_file
 import json
+import numpy as np
 import random
+from datasets import Dataset
 from safetensors.torch import save_file
 
 def FeedForward(dim, expansion_factor=4):
@@ -113,7 +125,7 @@ def debatch_input(input_data):
 	return output
 
 
-def batch_tokenize_input(train_text, batch_size=100, start=0, end=60000):
+def batch_tokenize_input(train_text, batch_size=128, start=0, end=60000):
 	train_data, test_data = [], []
 	max_length = 512
 
@@ -144,7 +156,7 @@ def batch_tokenize_input(train_text, batch_size=100, start=0, end=60000):
 
 @torch.no_grad()
 def embed_input(input_tokens):
-	embeddings = []
+	embeddings = torch.tensor([])
 	for i in range(0, len(input_tokens)):
 		if i % 100 == 0:
 			print (i)
@@ -152,27 +164,8 @@ def embed_input(input_tokens):
 			input_tokens[i]
 		)[..., -2, :].detach().to('cpu')
 		# expects the model's output to be the last hidden layer
-		embeddings.append(last_hidden_layers)
+		embeddings = torch.cat((embeddings, last_hidden_layers), dim=0)
 
-	embeddings = torch.stack(embeddings).squeeze(1)
-	return embeddings
-
-@torch.no_grad()
-def transformer_embed_input(input_tokens):
-	embeddings = []
-	for i in range(0, len(input_tokens)):
-		if i % 100 == 0:
-			print (i)
-		output = gen_model(
-			input_tokens[i].to(0),
-			output_hidden_states=True
-		)
-		last_hidden_layers = output.hidden_states[-1][..., -1, :].detach().to('cpu')
-		# expects the model's output to be the last hidden layer
-		embeddings.append(last_hidden_layers)
-		# embeddings = torch.cat((embeddings, last_hidden_layers), dim=0)
-
-	embeddings = torch.stack(embeddings).squeeze(1)
 	return embeddings
 
 
@@ -181,56 +174,27 @@ tokenizer.pad_token = tokenizer.eos_token
 
 train_text, test_text = load_dataset("roneneldan/TinyStories", split="train"), load_dataset("roneneldan/TinyStories", split="train")
 
-start, split, end = 0, 180000, 200000
-target_train_data = batch_tokenize_input(train_text, start=start, end=split)
-target_test_data = batch_tokenize_input(train_text, start=split, end=end)
+start, split, end = 0, 40000, 50000
+train_data = batch_tokenize_input(train_text, start=start, end=split)
+test_data = batch_tokenize_input(train_text, start=split, end=end)
 n_vocab = len(tokenizer)
 
 # generative model initialization
 tokenized_length = 512
+dim = 1024
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-dim = 512
 gen_model = LanguageMixer(n_vocab, dim, 8).float().to(device)
-# load_model(gen_model, '/home/bbadger/Desktop/tinystories/tinystories_mixer_512_flat/checkpoint-424000/model.safetensors')
-
-# dim = 1024
-# llama_config_kwargs = {
-#     'hidden_size': dim,
-#     'intermediate_size': 4*dim,
-#     'num_hidden_layers': 8,
-#     # 'num_heads': 4,
-#     'vocab_size': 4096
-# }
-
-# # Initializing a LLaMA model
-# configuration = LlamaConfig(**llama_config_kwargs)
-
-# # Initializing a model from the llama-7b style configuration
-# gen_model = LlamaForCausalLM(configuration).float().to(0)
-# load_model(gen_model, '/home/bbadger/Desktop/tinystories/tinystories_llama_1024/checkpoint-108000/model.safetensors')
-
+load_model(gen_model, '/home/bbadger/Desktop/tinystories/tinystories_mixer_1024_f_8/checkpoint-160000/model.safetensors')
 gen_model.eval()
-target_train, target_test = embed_input(target_train_data), embed_input(target_test_data)
+target_train = embed_input(train_data)
+target_test = embed_input(test_data)
 
 query_text = [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_60k.json'))]
-query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_60_100k.json'))]
-query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_100_200k.json'))]
-# query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_200_250k.json'))]
-# query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_250_300k.json'))] 
-# query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_300_350k.json'))]
-# query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_350_400k.json'))]
-# query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_400_450k.json'))]
-# query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_450_500k.json'))]
-# query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_500_550k.json'))]
-
 query_train_data = batch_tokenize_input(query_text, start=start, end=split)
 query_test_data = batch_tokenize_input(query_text, start=split, end=end)
-for i in range(30):
-	print (query_text[i], train_text[i], '\n')
 query_train, query_test = embed_input(query_train_data), embed_input(query_test_data)
-
 dictionary = {'query_train': query_train, 'query_test': query_test, 'target_train': target_train, 'target_test': target_test}
-filepath = '/home/bbadger/Desktop/retrieval_untrained_mixer_200k.safetensors'
+filepath = '/home/bbadger/Desktop/retrieval_50k.safetensors'
 save_file(dictionary, filepath)
 
 def generate_retrieval_dataset(query_embeddings, target_embeddings, n_context, multiples=10):
@@ -257,11 +221,11 @@ def generate_retrieval_dataset(query_embeddings, target_embeddings, n_context, m
 
 class RetrievalDataset(torch.utils.data.Dataset):
 
-	def __init__(self, target_embeddings, query_embeddings):
-		self.target_embeddings = target_embeddings
-		self.query_embeddings = query_embeddings
+    def __init__(self, target_embeddings, query_embeddings):
+    	self.target_embeddings = target_embeddings
+    	self.query_embeddings = query_embeddings
 
-	def __getitem__(self, idx):
+    def __getitem__(self, idx):
 		input = torch.zeros((n_context, query_embeddings[0].shape[1]))
 		input[0] = self.query_embeddings[idx]
 		exclusive_target = self.target_embeddings[:idx] + self.target_embeddings[idx+1:]
@@ -275,17 +239,17 @@ class RetrievalDataset(torch.utils.data.Dataset):
 		labels = torch.tensor(target_index-1, dtype=torch.long) # one-element label for cross-entropy loss
 		return {'input_ids': input, 'labels': labels}
    
-	def __len__(self):
-		return len(self.encodings.input_ids)
+    def __len__(self):
+        return len(self.encodings.input_ids)m
+  
+
+with safe_open(filepath, framework="pt", device='cpu') as f:
+    target_train_embeddings, target_test_embeddings = f['target_train_embeddings'], f['target_test_embeddings']
+    query_train_embeddings, query_test_embeddings = f['query_train_embeddings'], f['query_test_embeddings']
 
 
-# with safe_open(filepath, framework="pt", device='cpu') as f:
-# 	target_train_embeddings, target_test_embeddings = f['target_train_embeddings'], f['target_test_embeddings']
-# 	query_train_embeddings, query_test_embeddings = f['query_train_embeddings'], f['query_test_embeddings']
-
-
-# train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings)
-# test_dataset = RetreivalDataset(target_test_embeddings, query_test_embeddings)
+train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings)
+test_dataset = RetreivalDataset(target_test_embeddings, query_test_embeddings)
 
 # n_context = 2000
 # retrieval_train_dataset = generate_retrieval_dataset(query_train, target_train, n_context)

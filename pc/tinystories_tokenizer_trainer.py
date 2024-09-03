@@ -1,19 +1,8 @@
-from datasets import load_dataset
-
-# dataset = load_dataset("roneneldan/TinyStories")
-
 from pathlib import Path
 from tokenizers import ByteLevelBPETokenizer
-import os
-
 from transformers import AutoTokenizer
-
-
 import torch
-from transformers import AutoTokenizer, BatchEncoding
-
-file_path = "/home/bbadger/Desktop/TinyStories-train.txt"
-old_tokenizer = AutoTokenizer.from_pretrained("openlm-research/open_llama_3b")
+import os
 
 class TextDataset(torch.utils.data.Dataset):
     """
@@ -43,6 +32,10 @@ class TextDataset(torch.utils.data.Dataset):
         batch = self.line_batches[idx]
         return batch
 
+
+file_path = "/path/to/TinyStories-train.txt"
+old_tokenizer = AutoTokenizer.from_pretrained("openlm-research/open_llama_3b")
+
 # Create the dataset, and process the full file. 
 dataset = TextDataset(file_path, batch_size=1024)
 
@@ -51,51 +44,46 @@ dataloader = torch.utils.data.DataLoader(dataset, batch_size=None)
 
 # Train the new tokenizer
 tokenizer = old_tokenizer.train_new_from_iterator(dataloader, 4096)
-tokenizer.save_pretrained("/home/bbadger/Desktop/tiny_token_4k")
+tokenizer.save_pretrained("/path/to/tiny_token_4k")
 print ("Tokenizer saved")
 
 
-# with open("/home/bbadger/Desktop/TinyStories-train.txt", "r") as file:
-#     dataset = file.read()
+def train_tokenizer():
+    # prefer the method above to this function, which is much slower
+    with open("/home/bbadger/Desktop/TinyStories-train.txt", "r") as file:
+        dataset = file.read()
 
-# batch_size = 10000
-# all_texts = [dataset[i:i + batch_size] for i in range(0, len(dataset), batch_size)]
-# print (len(all_texts))
+    batch_size = 10000
+    all_texts = [dataset[i:i + batch_size] for i in range(0, len(dataset), batch_size)]
+    print (len(all_texts))
 
-# def batch_iterator():
-#     for i in range(0, len(dataset), batch_size):
-#         yield dataset[i:i + batch_size]
-
-
-# old_tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-# print ("pretrained tokenizer loaded")
-# vocab_size = 5000
-# data = iter(all_texts)
-# print (next(data))
-# tokenizer = old_tokenizer.train_new_from_iterator(data, vocab_size=vocab_size)
-# print (f"new {vocab_size} size tokenizer trained")
-# tokenizer.save_pretrained("/home/bbadger/Desktop/tiny_token_5k")
+    def batch_iterator():
+        for i in range(0, len(dataset), batch_size):
+            yield dataset[i:i + batch_size]
 
 
+    old_tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
+    print ("pretrained tokenizer loaded")
+    vocab_size = 5000
+    data = iter(all_texts)
+    tokenizer = old_tokenizer.train_new_from_iterator(data, vocab_size=vocab_size)
+    tokenizer.save_pretrained("/home/bbadger/Desktop/tiny_token_5k")
+    paths = [str(Path("/home/bbadger/Desktop/TinyStories-train.txt"))]
+    # Initialize a tokenizer
+    tokenizer = ByteLevelBPETokenizer()
 
-# paths = [str(Path("/home/bbadger/Desktop/TinyStories-train.txt"))]
-# print (paths)
+    # Customize training
+    tokenizer.train(files=paths, vocab_size=5_000, min_frequency=2, special_tokens=[
+        "<s>",
+        "<pad>",
+        "</s>",
+        "<unk>",
+        "<mask>",
+    ])
 
-# # Initialize a tokenizer
-# tokenizer = ByteLevelBPETokenizer()
+    save_path = "/home/bbadger/Desktop/tiny_tokenizer"
+    if not os.path.isdir(save_path):
+    	os.mkdir(save_path)
 
-# # Customize training
-# tokenizer.train(files=paths, vocab_size=5_000, min_frequency=2, special_tokens=[
-#     "<s>",
-#     "<pad>",
-#     "</s>",
-#     "<unk>",
-#     "<mask>",
-# ])
-
-# save_path = "/home/bbadger/Desktop/tiny_tokenizer"
-# if not os.path.isdir(save_path):
-# 	os.mkdir(save_path)
-
-# # Save files to disk
-# tokenizer.save_pretrained(save_path)
+    # Save files to disk
+    tokenizer.save_pretrained(save_path)

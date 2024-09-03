@@ -1,11 +1,29 @@
 import os
+
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+import os
 import torch
+import einops
+from einops import rearrange
+import transformers
+from transformers import PreTrainedTokenizerFast
+from transformers import TextDataset, Trainer, TrainingArguments
+from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+import torch.nn as nn
+import mlflow
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from datasets import load_dataset
+import sentencepiece
+from tokenizers import ByteLevelBPETokenizer
+from transformers import AutoModel
+from safetensors.torch import load_model, save_model, load_file
+import json
+import numpy as np
 import random
-from safetensors.torch import safe_open
-import time
+from datasets import Dataset
+from safetensors.torch import save_file, safe_open
 
 class RetrievalDataset(torch.utils.data.Dataset):
 
@@ -33,7 +51,7 @@ class RetrievalDataset(torch.utils.data.Dataset):
 	def __len__(self):
 		return len(self.target_embeddings)
   
-filepath = '/path/to/embeddings.safetensors'
+filepath = '/home/bbadger/Desktop/retrieval_50k.safetensors'
 with safe_open(filepath, framework="pt", device='cpu') as f:
 	target_train_embeddings, target_test_embeddings = f.get_tensor('target_train'), f.get_tensor('target_test')
 	query_train_embeddings, query_test_embeddings = f.get_tensor('query_train'), f.get_tensor('query_test')
@@ -43,7 +61,5 @@ train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings
 test_dataset = RetrievalDataset(target_test_embeddings, query_test_embeddings)
 
 print (len(train_dataset))
-start = time.time()
 for i in range(50000):
 	y = train_dataset[i]
-print (f'Elapsed time: {time.time() - start}')
