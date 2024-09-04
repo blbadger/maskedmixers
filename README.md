@@ -1,5 +1,7 @@
 # maskedmixers
 
+![mixer](cover.png)
+
 Code for the paper 'Masked Mixers for Language Generation and Retrieval', which you can read [here](https://arxiv.org/abs/2409.01482). Datasets and trained models will be added soon.
 
 For a less formal version of this work written as a technical blog post, see [this page](https://blbadger.github.io/smaller-lms.html)
