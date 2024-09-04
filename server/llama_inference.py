@@ -7,13 +7,6 @@ from safetensors.torch import load_model
 from transformers import LlamaConfig, LlamaForCausalLM
 
 
-def FeedForward(dim, expansion_factor=4):
-	inner_dim = int(dim * expansion_factor)
-	return nn.Sequential(
-		nn.Linear(dim, inner_dim),
-		nn.GELU(),
-		nn.Linear(inner_dim, dim)
-	)
 
 class MixerBlock(nn.Module):
 

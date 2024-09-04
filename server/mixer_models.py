@@ -1,11 +1,10 @@
-import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
-
 import torch
 from einops import rearrange
 import torch.nn as nn
+from transformers import AutoTokenizer
+from datasets import load_dataset
+
+device = 'cuda' if torch.cuda.is_available else 'cpu'
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -15,18 +14,17 @@ def FeedForward(dim, expansion_factor=4):
 		nn.Linear(inner_dim, dim)
 	)
 
-def ConvForward(dim, expansion_factor=2):
+def ConvForward(dim, expansion_factor=1):
 	inner_dim = int(dim * expansion_factor)
 	return nn.Sequential(
-		nn.Conv1d(dim, inner_dim, 1),
+		nn.Conv1d(dim, inner_dim, 1, bias=False),
 		nn.GELU(),
-		nn.Conv1d(inner_dim, dim, 1)
+		nn.Conv1d(inner_dim, dim, 1, bias=False)
 		)
-
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length, mixer_mask=True, expand_conv=True):
+	def __init__(self, dim, length, mixer_mask=True, expand_conv=True, kernel_dim=1):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
@@ -36,7 +34,7 @@ class MixerBlock(nn.Module):
 		if expand_conv:
 			self.conv = ConvForward(length)
 		else:
-			self.conv = nn.Conv1d(length, length, 1)
+			self.conv = nn.Conv1d(length, length, kernel_dim)
 		self.mixer_mask = mixer_mask
 		self.expand_conv = expand_conv
 
@@ -47,6 +45,7 @@ class MixerBlock(nn.Module):
 		# for CLM training, apply lower triangular mask to convolution weights
 		if self.mixer_mask:
 			if self.expand_conv:
+				# assumes that kernel dim=1
 				rearranged_shape = rearrange(self.conv[0].weight, 'f d p -> f (d p)').shape
 				mask = torch.tril(torch.ones(rearranged_shape)).to(device)
 				applied_mask = rearrange(self.conv[0].weight, 'f d p -> f (d p)') * mask
@@ -58,12 +57,7 @@ class MixerBlock(nn.Module):
 				self.conv[2].weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
 
 			else:
-				# rearranged_shape = rearrange(self.conv.weight, 'f d p -> f (d p)').shape
-				# mask = torch.tril(torch.ones(rearranged_shape)).to(device)
-				# applied_mask = rearrange(self.conv.weight, 'f d p -> f (d p)') * mask
-				# self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
-
-				masked_conv = torch.tril(rearrange(self.conv.weight, 'f d p -> p f d'))
+				masked_conv = self.softmax(torch.tril(rearrange(self.conv.weight, 'f d p -> p f d')))
 				self.conv.weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
 
 		residual = x
@@ -74,10 +68,9 @@ class MixerBlock(nn.Module):
 		x = self.patch_ff(x) + residual
 		return x
 
-
 class LanguageMixer(nn.Module):
 
-	def __init__(self, n_vocab, dim, depth, tie_weights=False):
+	def __init__(self, n_vocab, dim, depth, tokenized_length=512, tie_weights=False):
 		super().__init__()
 		self.wte = nn.Embedding(n_vocab, dim)
 		self.mixerblocks = nn.ModuleList(
@@ -86,7 +79,7 @@ class LanguageMixer(nn.Module):
 				length = tokenized_length,
 				)
 			for i in range(depth)]
-			).to(device)
+			).to('cuda')
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
 			 self.wte.weight = self.lm_head.weight
@@ -105,15 +98,3 @@ class LanguageMixer(nn.Module):
 		shift_labels = labels[..., 1:].contiguous()
 		loss = self.cel(shift_logits, shift_labels)
 		return loss, output
-
-
-tokenized_length = 3
-dim = 10
-n_vocab=4096
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = LanguageMixer(n_vocab, dim, 2).float().to(device)
-
-one = torch.tensor([[[1, 2, 3]]]).to(device)
-two = torch.tensor([[[1, 4, 3]]]).to(device)
-print (model(one, labels=one))
-print (model(two, labels=two))

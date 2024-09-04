@@ -1,11 +1,15 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import torch
 from einops import rearrange
 import torch.nn as nn
+from transformers import AutoTokenizer
+from datasets import load_dataset
+from safetensors.torch import load_model
+
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -15,7 +19,7 @@ def FeedForward(dim, expansion_factor=4):
 		nn.Linear(inner_dim, dim)
 	)
 
-def ConvForward(dim, expansion_factor=2):
+def ConvForward(dim, expansion_factor=1):
 	inner_dim = int(dim * expansion_factor)
 	return nn.Sequential(
 		nn.Conv1d(dim, inner_dim, 1),
@@ -26,7 +30,7 @@ def ConvForward(dim, expansion_factor=2):
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length, mixer_mask=True, expand_conv=True):
+	def __init__(self, dim, length, mixer_mask=True, expand_conv=False):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
@@ -58,13 +62,10 @@ class MixerBlock(nn.Module):
 				self.conv[2].weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
 
 			else:
-				# rearranged_shape = rearrange(self.conv.weight, 'f d p -> f (d p)').shape
-				# mask = torch.tril(torch.ones(rearranged_shape)).to(device)
-				# applied_mask = rearrange(self.conv.weight, 'f d p -> f (d p)') * mask
-				# self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
-
-				masked_conv = torch.tril(rearrange(self.conv.weight, 'f d p -> p f d'))
-				self.conv.weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
+				rearranged_shape = rearrange(self.conv.weight, 'f d p -> f (d p)').shape
+				mask = torch.tril(torch.ones(rearranged_shape)).to(device)
+				applied_mask = rearrange(self.conv.weight, 'f d p -> f (d p)') * mask
+				self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
 
 		residual = x
 		x = self.seq_layernorm(x)
@@ -101,19 +102,51 @@ class LanguageMixer(nn.Module):
 		output = self.lm_head(x)
 		labels = rearrange(labels, 'b p t -> b (p t)')
 		output = rearrange(output, 'b t e -> b e t')
+		labels = labels.to(device)
 		shift_logits = output[..., :-1].contiguous()
 		shift_labels = labels[..., 1:].contiguous()
-		loss = self.cel(shift_logits, shift_labels)
+		loss = self.cel(shift_logits[..., -100:], shift_labels[..., -100:])
+		print (loss) # observe loss on last 100 generated tokens
 		return loss, output
 
 
-tokenized_length = 3
-dim = 10
-n_vocab=4096
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = LanguageMixer(n_vocab, dim, 2).float().to(device)
+tokenizer = AutoTokenizer.from_pretrained("/path/to/tiny_token_4k")
+tokenizer.pad_token = tokenizer.eos_token
 
-one = torch.tensor([[[1, 2, 3]]]).to(device)
-two = torch.tensor([[[1, 4, 3]]]).to(device)
-print (model(one, labels=one))
-print (model(two, labels=two))
+train_text = load_dataset("roneneldan/TinyStories", split="train")
+valid_text = load_dataset("roneneldan/TinyStories", split="validation")
+
+n_vocab = len(tokenizer)
+
+tokenized_length = 512
+dim = 1024
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = LanguageMixer(n_vocab, dim, 8).float().to(device)
+load_model(model, '/path/to/model.safetensors')
+
+model.eval()
+
+prompt = valid_text[10]
+tokens = tokenizer.encode(prompt, return_tensors='pt', padding='max_length', max_length=512)
+
+tokens = tokenizer.encode(
+				prompt,
+				add_special_tokens=False,
+				return_tensors='pt',
+				padding='max_length',
+				max_length=512
+			)
+
+print ('model loaded.')
+print ('Input: ', tokenizer.decode(tokens[0]))
+tokens = rearrange(tokens, '(b p) t -> b p t', p=1)
+
+fout = []
+for i in range(50, 1, -1):
+	loss, output = model(tokens, labels=tokens.to(device))
+	out_token = torch.topk(output, dim=1, k=1).indices.flatten()[-i]
+	tokens[..., -i+1] = out_token
+
+print ('\n \n')
+print ('Output: \n', tokenizer.decode(tokens[0][0]))
+

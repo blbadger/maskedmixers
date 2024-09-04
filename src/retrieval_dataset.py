@@ -1,28 +1,11 @@
-import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-import os
 import torch
-import einops
 from einops import rearrange
-import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
-import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import AutoModel
-from safetensors.torch import load_model, save_model, load_file
+from safetensors.torch import load_model
 import json
-import numpy as np
 import random
-from datasets import Dataset
 from safetensors.torch import save_file
 
 def FeedForward(dim, expansion_factor=4):
@@ -250,7 +233,3 @@ with safe_open(filepath, framework="pt", device='cpu') as f:
 
 train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings)
 test_dataset = RetreivalDataset(target_test_embeddings, query_test_embeddings)
-
-# n_context = 2000
-# retrieval_train_dataset = generate_retrieval_dataset(query_train, target_train, n_context)
-# retrieval_test_dataset = generate_retrieval_dataset(query_test, target_test, n_context)

@@ -1,21 +1,13 @@
-import os
-import prettytable
 from prettytable import PrettyTable
 
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
+from transformers import LlamaForCausalLM
 
 
 def FeedForward(dim, expansion_factor=4):
@@ -48,8 +40,6 @@ class MixerBlock(nn.Module):
 			self.conv = ConvForward(length)
 		else:
 			self.conv = nn.Conv1d(length, length, 1)
-			# self.convf = nn.Conv1d(length, length, 1)
-			# self.convr = nn.Conv1d(length, length, 1)
 		self.clm_mask = clm_mask
 		self.expand_conv = expand_conv
 		self.softmax = nn.Softmax(dim=0)
@@ -85,18 +75,12 @@ class MixerBlock(nn.Module):
 			self.conv.weight.data = rearrange(masked_conv, '(p f) d -> f d p', p=1).contiguous()
 
 
-			# masked_convf = torch.tril(rearrange(self.convf.weight, 'f d p -> p f d'))
-			# self.convf.weight.data = rearrange(masked_convf, 'p f d -> f d p').contiguous()
-
-			# masked_convr = torch.triu(rearrange(self.convr.weight, 'f d p -> p f d'), diagonal=2)
-			# self.convr.weight.data = rearrange(masked_convr, 'p f d -> f d p').contiguous()
-
 		residual = x
 		x = self.seq_layernorm(x)
-		x = self.conv(x)#  + residual
+		x = self.conv(x) + residual
 		residual = x
 		x = self.patch_layernorm(x)
-		x = self.patch_ff(x)# + residual
+		x = self.patch_ff(x) + residual
 		return x
 
 
@@ -133,7 +117,7 @@ class LanguageMixer(nn.Module):
 		return loss, output
 
 # tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
+tokenizer = AutoTokenizer.from_pretrained("/path/to/tiny_token_4k")
 tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
 print (tokenizer.is_fast)
@@ -143,11 +127,6 @@ dim = 1024
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = LanguageMixer(n_vocab, dim, 2) 
 
-# one = torch.tensor([[[1, 4, 3]]]).to(device)
-# two = torch.tensor([[[1, 2, 3]]]).to(device)
-# print (model(one, labels=one))
-# print (model(two, labels=two))
-# print (model)
 
 def count_parameters(model):
 	table = PrettyTable(["Modules", "Parameters"])
@@ -170,26 +149,6 @@ train_text = load_dataset("roneneldan/TinyStories", split="train")
 valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 
 
-def tile_inputs(input_ids, tile_overlap=100, tile_size=828):
-	text_length = len(input_ids[0])
-	assert text_length > tile_overlap, 'Text must be longer than overlap to tile'
-	tiled_arr = []
-	i = 0
-	while i < text_length:
-		if i + tile_size <= text_length:
-			tiled_arr.append(input_ids[0][i:i+tile_size])
-		else:
-			# pad the last tile to the appropriate length
-			tokens = input_ids[0][i:i+tile_size]
-			pad_length = tile_size - len(tokens)
-			tokens = torch.nn.functional.pad(tokens,
-											(0, pad_length),
-											 mode='constant',
-											 value=tokenizer.pad_token_id)
-			tiled_arr.append(tokens)
-		i += tile_size - tile_overlap
-	return tiled_arr
-
 def debatch_input(input_data):
 	output = []
 	for i in range(len(input_data)):
@@ -197,7 +156,6 @@ def debatch_input(input_data):
 			input_data[i] = input_data[i].unsqueeze(1)
 			output += list(input_data[i])
 	return output
-
 
 def batch_tokenize_input(train_text, test_text, length=20000, batch_size=1024):
 	train_data, test_data = [], []
@@ -231,66 +189,8 @@ def batch_tokenize_input(train_text, test_text, length=20000, batch_size=1024):
 
 	return train_data, test_data
 
-def tokenize_input(train_text, test_text):
-	train_data, test_data = [], []
-	max_length = 512
-
-	for i in range(1000000):
-		input_ids = tokenizer.encode(
-			train_text[i]['text'],
-			add_special_tokens=False,
-			return_tensors='pt',
-			truncation=False,
-			max_length=max_length,
-			padding='max_length'
-		)
-
-		if len(input_ids[0]) > max_length:
-			input_set = tile_inputs(input_ids, tile_size=max_length)
-			for inp in input_set:
-				train_data.append(inp)
-		else:
-			train_data.append(input_ids)
-
-	for i in range(len(test_text)):
-		if test_text[i]:
-			input_ids = tokenizer.encode(
-				test_text[i]['text'],
-				add_special_tokens=False,
-				return_tensors='pt',
-				truncation=False,
-				max_length=max_length,
-				padding='max_length'
-			)
-
-			if len(input_ids[0]) > max_length:
-				input_set = tile_inputs(
-					input_ids,
-					tile_size=max_length
-				)
-				for inp in input_set:
-					test_data.append(inp)
-			else:
-				test_data.append(input_ids)
-
-	return train_data, test_data
-
 train_data, test_data = batch_tokenize_input(train_text, valid_text)
 train_data, test_data = debatch_input(train_data), debatch_input(test_data)
-
-def reformat_inputs(train_data, test_data):
-	# reformat inputs for transformer modelz`
-	for i, _ in enumerate(train_data):
-		train_data[i] = train_data[i].flatten()
-
-	for i, _ in enumerate(test_data):
-		test_data[i] = test_data[i].flatten()
-	return train_data, test_data
-
-
-if isinstance(model, LlamaForCausalLM):
-	reformat_inputs(train_data, test_data)
-
 
 mlflow.end_run()
 print ('training begun')
@@ -305,7 +205,7 @@ training_arguments = transformers.TrainingArguments(
 	learning_rate=2e-4,
 	fp16=True,
 	evaluation_strategy='steps',
-	output_dir='~/Desktop/mixer_1024_noresids',
+	output_dir='~/path/to/dir',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	save_safetensors=True

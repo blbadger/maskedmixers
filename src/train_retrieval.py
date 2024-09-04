@@ -1,23 +1,12 @@
-import os
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
-import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import AutoModel
-from safetensors.torch import load_model, save_model, load_file
 import json
 import numpy as np
 import random
-from datasets import Dataset
 from safetensors.torch import safe_open
 from tqdm import tqdm
 
@@ -49,7 +38,7 @@ class MixerBlock(nn.Module):
 		if expand_conv:
 			self.conv = ConvForward(length)
 		else:
-			self.conv3 = nn.Conv1d(length, length, 1)
+			self.conv = nn.Conv1d(length, length, 1)
 		self.mixer_mask = mixer_mask
 		self.expand_conv = expand_conv
 
@@ -71,14 +60,14 @@ class MixerBlock(nn.Module):
 				self.conv[2].weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
 
 			else:
-				rearranged_shape = rearrange(self.conv3.weight, 'f d p -> f (d p)').shape
+				rearranged_shape = rearrange(self.conv.weight, 'f d p -> f (d p)').shape
 				mask = torch.tril(torch.ones(rearranged_shape)).to(device)
-				applied_mask = rearrange(self.conv3.weight, 'f d p -> f (d p)') * mask
-				self.conv3.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
+				applied_mask = rearrange(self.conv.weight, 'f d p -> f (d p)') * mask
+				self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
 
 		residual = x
 		x = self.seq_layernorm(x)
-		x = self.conv3(x) + residual
+		x = self.conv(x) + residual
 		residual = x
 		x = self.patch_layernorm(x)
 		x = self.patch_ff(x) + residual
@@ -139,8 +128,6 @@ class RetrievalMixer(nn.Module):
 
 	def __init__(self, dim, depth, n_samples):
 		super().__init__()
-		# self.query_embeddings = query_embeddings.to(device)
-		# self.target_embeddings = target_embeddings.to(device)
 		self.mixerblocks = nn.ModuleList(
 			[BidirectionalMixerBlock(
 				dim = dim,
@@ -335,7 +322,7 @@ class RetrievalDataset(torch.utils.data.Dataset):
 			self.expanded_size = len(target_embeddings) * pre_index_epochs
 			self.indices = []
 			for i in tqdm(range(self.expanded_size)):
-				self.indices.append(torch.multinomial(self.prob_weights, self.n_context-1, replacement=True))
+				self.indices.append(torch.multinomial(self.prob_weights, self.n_context-1, replacement=replace))
 
 	def __getitem__(self, idx):
 		input = torch.zeros((self.n_context, self.query_embeddings[0].shape[1]))
@@ -387,23 +374,15 @@ class RetrievalIndexDataset(torch.utils.data.Dataset):
 	def __len__(self):
 		return self.length
 
-filepath = '/home/bbadger/Desktop/retrieval_512_200k.safetensors' 
+filepath = '/path/to/embeddings.safetensors' 
 with safe_open(filepath, framework="pt", device='cpu') as f:
 	target_train_embeddings, target_test_embeddings = f.get_tensor('target_train'), f.get_tensor('target_test')
 	query_train_embeddings, query_test_embeddings = f.get_tensor('query_train'), f.get_tensor('query_test')
 target_test_embeddings = target_test_embeddings[:len(query_test_embeddings)]
 
-#filepath = '/home/bbadger/Desktop/retrieval_mixer_512_200_550k.safetensors'
-#with safe_open(filepath, framework="pt", device='cpu') as f:
-#	target_train_embeddings = torch.cat((target_train_embeddings, f.get_tensor('target_train')))
-#	target_test_embeddings = torch.cat((target_test_embeddings, f.get_tensor('target_test')))
-#	query_train_embeddings = torch.cat((query_train_embeddings, f.get_tensor('query_train')))
-##	query_test_embeddings = torch.cat((query_test_embeddings, f.get_tensor('query_test')))
-
 n_context = 128
 train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings, n_context=n_context, replace=True)
 test_dataset = RetrievalDataset(target_test_embeddings, query_test_embeddings, n_context=n_context, replace=True)
-print (len(target_test_embeddings), len(query_test_embeddings))
 
 # initialize retrieval model
 retrieval_model = RetrievalMixer(512, 8, n_context)
