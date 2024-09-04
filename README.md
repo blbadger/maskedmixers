@@ -6,9 +6,10 @@ Code for the paper 'Masked Mixers for Language Generation and Retrieval', which 
 
 For a less formal version of this work written as a technical blog post, see [this page](https://blbadger.github.io/smaller-lms.html)
 
-### Brief paper overview:
+### TL;DR:
+**Motivation:** Poor input representation accuracy in transformers, but much better accuracy in MLP-mixers adapted for causal language modeling (aka masked mixers)
 
- Motivated by the poor input representation in transformers and the much better representation in MLP-mixers adapted for causal language modeling (aka masked mixers), we find that these models are approximately as efficient learners of language generation relative to transformers but are far superior for retrieval.
+**Finding:** Masked mixers are approximately as efficient learners of language generation relative to transformers but are far superior for retrieval.
 
 ### General Use
 
