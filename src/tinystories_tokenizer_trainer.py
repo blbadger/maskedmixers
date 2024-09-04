@@ -87,3 +87,4 @@ def train_tokenizer():
 
     # Save files to disk
     tokenizer.save_pretrained(save_path)
+    return

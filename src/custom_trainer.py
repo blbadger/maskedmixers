@@ -3,8 +3,8 @@ from einops import rearrange
 import torch.nn as nn
 from transformers import AutoTokenizer
 from datasets import load_dataset
-from mixer_models import LanguageMixer
-from processors import batch_tokenize_input
+from utilities.mixer_models import LanguageMixer
+from utilities.processors import batch_tokenize_input
 
 # tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")

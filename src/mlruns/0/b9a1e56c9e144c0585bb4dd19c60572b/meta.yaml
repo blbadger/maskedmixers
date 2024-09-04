@@ -1,0 +1,15 @@
+artifact_uri: file:///home/bbadger/Desktop/maskedmixers/src/mlruns/0/b9a1e56c9e144c0585bb4dd19c60572b/artifacts
+end_time: 1725474114923
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: b9a1e56c9e144c0585bb4dd19c60572b
+run_name: /home/bbadger/Desktop/autoencoding_mixer_1024_n16_b32
+run_uuid: b9a1e56c9e144c0585bb4dd19c60572b
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1725474112910
+status: 3
+tags: []
+user_id: bbadger

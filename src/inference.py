@@ -9,7 +9,7 @@ import torch.nn as nn
 from transformers import AutoTokenizer
 from datasets import load_dataset
 from safetensors.torch import load_model
-from mixer_models import LanguageMixer
+from utilities.mixer_models import LanguageMixer
 
 class LanguageMixerwLoss(LanguageMixer):
 

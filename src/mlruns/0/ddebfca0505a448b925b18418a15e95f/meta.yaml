@@ -1,0 +1,15 @@
+artifact_uri: file:///home/bbadger/Desktop/maskedmixers/src/mlruns/0/ddebfca0505a448b925b18418a15e95f/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: ddebfca0505a448b925b18418a15e95f
+run_name: /home/bbadger/Desktop/llama_512
+run_uuid: ddebfca0505a448b925b18418a15e95f
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1725473746680
+status: 1
+tags: []
+user_id: bbadger

@@ -1,5 +1,6 @@
 import torch
 import random
+import time
 from safetensors.torch import safe_open
 
 class RetrievalDataset(torch.utils.data.Dataset):
@@ -28,15 +29,17 @@ class RetrievalDataset(torch.utils.data.Dataset):
 	def __len__(self):
 		return len(self.target_embeddings)
   
-filepath = '/home/bbadger/Desktop/retrieval_50k.safetensors'
-with safe_open(filepath, framework="pt", device='cpu') as f:
-	target_train_embeddings, target_test_embeddings = f.get_tensor('target_train'), f.get_tensor('target_test')
-	query_train_embeddings, query_test_embeddings = f.get_tensor('query_train'), f.get_tensor('query_test')
+
+if __name__ == '__main__':
+	filepath = '/home/bbadger/Desktop/retrieval_50k.safetensors'
+	with safe_open(filepath, framework="pt", device='cpu') as f:
+		target_train_embeddings, target_test_embeddings = f.get_tensor('target_train'), f.get_tensor('target_test')
+		query_train_embeddings, query_test_embeddings = f.get_tensor('query_train'), f.get_tensor('query_test')
 
 
-train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings)
-test_dataset = RetrievalDataset(target_test_embeddings, query_test_embeddings)
-
-print (len(train_dataset))
-for i in range(50000):
-	y = train_dataset[i]
+	train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings)
+	test_dataset = RetrievalDataset(target_test_embeddings, query_test_embeddings)
+	t = time.time()
+	for i in range(10000):
+		y = train_dataset[i]
+	print (time.time() - t)

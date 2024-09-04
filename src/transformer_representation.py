@@ -11,44 +11,12 @@ import random
 from torch import nn
 from datasets import load_dataset
 from safetensors.torch import load_model
+from utilities.representation import generate_singleinput, hamming_metric
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 manualSeed = 1
 random.seed(manualSeed)
 torch.manual_seed(manualSeed)
-
-def octave(single_input, target_output, iterations, learning_rates):
-    start_lr, end_lr = learning_rates
-    original_input = single_input.clone()
-    losses, i_arr = [], []
-
-    for i in range(iterations):
-        input_grad, loss = layer_gradient(model, single_input, target_output)
-        single_input = single_input.detach()
-        single_input -= (start_lr*(iterations-i)/iterations + end_lr*i/iterations)*input_grad
-    return single_input
-
-def generate_singleinput(model, target, lr=0.02): # 0.01
-    random_input = torch.randn(embedding.shape).to(device)
-    single_input = octave(random_input, target, 500, [lr, lr/10])
-    return single_input
-
-def layer_gradient(model, input_tensor, target, cosine_metric=False):
-    input_tensor.requires_grad = True
-    output = a_model(input_tensor)
-
-    if cosine_metric:
-        output, target = output[:, :, :].flatten(), target[:, :, :].flatten()
-        loss = 1 - torch.abs(torch.dot(output, target)) / (torch.norm(output, p=2) * torch.norm(target, p=2))
-  
-    else:
-        loss = torch.sum(torch.abs(target[:, :, :] - output[:, :, :]))
-        
-    # print (loss.item())
-    loss.backward()
-    gradient = input_tensor.grad
-    return gradient, loss.item()
-
 
 class AbbreviatedModel(nn.Module):
 
@@ -64,34 +32,6 @@ class AbbreviatedModel(nn.Module):
             x = self.model.model.layers[i](x, position_ids=position_ids)[0]
 
         return x
-
-def count_parameters(model):
-    table = PrettyTable(["Modules", "Parameters"])
-    total_params = 0
-    for name, parameter in model.named_parameters():
-        if not parameter.requires_grad:
-            continue
-        params = parameter.numel()
-        table.add_row([name, params])
-        total_params += params
-    print(table)
-    print(f"Total Trainable Params: {total_params}")
-    return total_params
-
-def hamming_metric(input_tokens, generated_tokens):
-    # expects tokens to be pre-flattened
-    assert len(input_tokens) == len(generated_tokens)
-    count, card = 0, 0
-    pad_token = tokenizer.encode(tokenizer.pad_token)[-1] # will be [2] for tiny_token_4k
-    for i in range(len(tokens)):
-        if input_tokens[i] == pad_token:
-            continue
-        else:
-            card += 1
-            if input_tokens[i] in generated_tokens[i]:
-                count += 1
-    return (card - count) / card
-
 
 if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
@@ -173,16 +113,17 @@ if __name__ == "__main__":
                     shifted_target_tensor = a_model(shifted_embedding.to(device)).to(device)
                     target_tensor = a_model(embedding).to(device)
 
-                embedding = embedding.detach()
-                generated_input = generate_singleinput(a_model, target_tensor)
+                random_embedding = embedding.detach()
+                generated_input = generate_singleinput(a_model, random_embedding, target_tensor)
                 g_input = generated_input
 
                 generated_target_tensor = a_model(g_input).to(device)
                 logits = torch.matmul(generated_input, inverse_embedding)
                 topk_k = 5
                 generated_tokens = torch.topk(logits, topk_k)[1][0] # indicies of topk of tensor [length, topk_tokens]
-                metric = hamming_metric(tokens, generated_tokens)
+                metric = hamming_metric(tokens, generated_tokens, tokenizer)
                 hamming_metrics.append(metric)
+                print (metric)
             hammings.append(hamming_metrics)
 
             print (f'Hamming metrics for dim {d}: ', hamming_metrics)

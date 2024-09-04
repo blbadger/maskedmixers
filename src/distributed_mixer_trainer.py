@@ -7,11 +7,10 @@ import mlflow
 from transformers import AutoTokenizer
 from datasets import load_dataset
 from transformers import LlamaForCausalLM
-from mixer_models import LangaugeMixer
-from processors import reformat_inputs, batch_tokenize_input, debatch_input
+from utilities.mixer_models import LanguageMixer
+from utilities.processors import reformat_inputs, batch_tokenize_input, debatch_input
 
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
+tokenizer = AutoTokenizer.from_pretrained("/path/to/tokenizer/tiny_token_4k")
 tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
 
@@ -24,7 +23,7 @@ model = LanguageMixer(n_vocab, dim, 6).float()
 train_text = load_dataset("roneneldan/TinyStories", split="train")
 valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 
-train_data, test_data = batch_tokenize_input(train_text, valid_text)
+train_data, test_data = batch_tokenize_input(train_text, valid_text, tokenizer)
 train_data, test_data = debatch_input(train_data), debatch_input(test_data)
 
 mlflow.end_run()
@@ -33,7 +32,7 @@ print ('training begun')
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=1,
 	per_device_train_batch_size=32,
-	per_device_eval_batch_size=16,
+	per_device_eval_batch_size=32,
 	warmup_steps=500,
 	eval_steps=4000,
 	save_steps=4000,
