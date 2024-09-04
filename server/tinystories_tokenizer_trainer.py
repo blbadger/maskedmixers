@@ -1,16 +1,5 @@
-from datasets import load_dataset
-
-# dataset = load_dataset("roneneldan/TinyStories")
-
-from pathlib import Path
-from tokenizers import ByteLevelBPETokenizer
-import os
-
-from transformers import AutoTokenizer
-
-
 import torch
-from transformers import AutoTokenizer, BatchEncoding
+from transformers import AutoTokenizer
 
 file_path = "/home/bbadger/Desktop/TinyStories-train.txt"
 old_tokenizer = AutoTokenizer.from_pretrained("openlm-research/open_llama_3b")
