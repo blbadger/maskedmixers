@@ -1,9 +1,4 @@
-
-#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
 from prettytable import PrettyTable
-
 import torch
 from einops import rearrange
 import transformers
@@ -114,7 +109,6 @@ class LanguageMixer(nn.Module):
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
 tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
-print (tokenizer.is_fast)
 
 tokenized_length = 512
 dim = 2048

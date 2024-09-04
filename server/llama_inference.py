@@ -154,32 +154,12 @@ train_data, test_data = batch_tokenize_input(train_text, valid_text)
 tokens = test_data[20][..., :-50]
 print (tokenizer.decode(tokens[0]))
 
-# prompt = '''Once upon a time, there was a lively little boy named Tim. He loved to play and run all day. One day, Tim found a big bag of oats. He believed that if he ate the oats, he would be very strong.<unk>Tim ate a lot of oats every day. He felt stronger and stronger. His friends saw him and wanted to eat oats too. They believed that they would be strong like Tim.<unk>But one day, Tim ate too many oats. His tummy hurt a lot.'''
-# tokens = tokenizer.encode(
-# 				prompt,
-# 				add_special_tokens=False,
-# 				return_tensors='pt'
-# 			)
-# string = '''Once upon a time, there was a little boy named Tim. Tim had a big, orange ball. He loved his ball very much. One day, Tim met a girl named Sue. Sue had a pretty doll. Tim liked Sue's doll, and Sue liked Tim's orange ball.<unk>Tim and Sue thought about a trade. They would trade the ball for the doll. Tim was not sure. He loved his orange ball. Sue said, "I promise to take care of your ball. You can play with it when you'''
-
 print (model(tokens[..., -50:], labels=tokens[..., -50:]).loss)
 gen = True
 if gen:
-	# tokens = tokenizer.encode(
-	# 		string,
-	# 		add_special_tokens=False,
-	# 		return_tensors='pt'
-	# 	)
-	# print (tokens)
 	output = model.generate(tokens, max_new_tokens=50)
 	output = tokenizer.decode(output[0])
 	print (output, "\n")
-
-# output = model(tokens).logits
-# output = torch.topk(output, dim=2, k=1).indices
-# output = output.flatten()
-# tokens = tokenizer.decode(output)
-# print (tokens)
 
 fout = []
 for i in range(50):

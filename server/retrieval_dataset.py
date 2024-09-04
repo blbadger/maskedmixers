@@ -233,7 +233,3 @@ with safe_open(filepath, framework="pt", device='cpu') as f:
 
 train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings)
 test_dataset = RetreivalDataset(target_test_embeddings, query_test_embeddings)
-
-# n_context = 2000
-# retrieval_train_dataset = generate_retrieval_dataset(query_train, target_train, n_context)
-# retrieval_test_dataset = generate_retrieval_dataset(query_test, target_test, n_context)

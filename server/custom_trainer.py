@@ -110,12 +110,6 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = LanguageMixer(n_vocab, dim, 1).float().to(device)
 print (model)
 
-# one = torch.tensor([[[5, 2, 3]]]).to(device)
-# two = torch.tensor([[[1, 2, 3]]]).to(device)
-# print (model(one, labels=one))
-# print (model(two, labels=two))
-# print (model)
-
 # cached dataset
 train_text = load_dataset("roneneldan/TinyStories", split="train")
 valid_text = load_dataset("roneneldan/TinyStories", split="validation")
@@ -179,7 +173,6 @@ def train_model():
 			optimizer.step()
 			print (model.mixerblocks[0].conv[0].weight[10][:10])
 		print ('Average loss: ', total_loss / len(batch))
-
 
 train_model()
 

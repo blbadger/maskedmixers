@@ -192,8 +192,7 @@ def count_parameters(model):
 
 
 if __name__ == "__main__":
-
-    tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
+    tokenizer = AutoTokenizer.from_pretrained("/path/to/tiny_token_4k")
     tokenizer.pad_token = tokenizer.eos_token
     n_vocab = len(tokenizer)
     short_promps = False
