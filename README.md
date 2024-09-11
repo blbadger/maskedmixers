@@ -15,6 +15,10 @@ For a less formal version of this work written as a technical blog post, see [th
 
 Unless you want to replicate a specific experiment, use the `src` directory to train, run, and evaluate mixers and other related models.
 
+### Transformer-mixer implementation
+
+The transfixer implementation is tightly bound to the Huggingface Llama implementation, and may be found [here](https://github.com/blbadger/transformers/tree/transfixer) as a branch of the transformers library version 4.42.2.
+
 ### For Experimental Replication
 
 There are two directories for experimental replication purposes: `pc` denotes code used for the 1x Nvidia RTX 3060 node and `server` denotes code used for the 4x V100 node (compatible with DDP).  
