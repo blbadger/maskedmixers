@@ -21,4 +21,4 @@ The transfixer implementation is tightly bound to the Huggingface Llama implemen
 
 ### For Experimental Replication
 
-There are two directories for experimental replication purposes: `pc` denotes code used for the 1x Nvidia RTX 3060 node and `server` denotes code used for the 4x V100 node (compatible with DDP).  
+Use the `.mixer_lm` directory for replication of experiments.
