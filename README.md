@@ -13,12 +13,10 @@ For a less formal version of this work written as a technical blog post, see [th
 
 ### General Use
 
+**Note that the `src` directory is currenty under construction: use `mixer_lm` for now**
+
 Unless you want to replicate a specific experiment, use the `src` directory to train, run, and evaluate mixers and other related models.
-
-### Transformer-mixer implementation
-
-The transfixer implementation is tightly bound to the Huggingface Llama implementation, and may be found [here](https://github.com/blbadger/transformers/tree/transfixer) as a branch of the transformers library version 4.42.2.
 
 ### For Experimental Replication
 
-Use the `.mixer_lm` directory for replication of experiments.
+Use the `mixer_lm` directory for replication of experiments.
