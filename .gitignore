@@ -25,6 +25,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# virtual environments
 mixer-venv/
 
 # PyInstaller
