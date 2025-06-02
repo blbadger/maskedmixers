@@ -277,7 +277,6 @@ trainer = transformers.Trainer(
 
 model.train()
 trainer.train()
-#trainer.train('/home/bbadger/Desktop/mixer_4096_linear_lean_c64/checkpoint-32000') # '/home/bbadger/Desktop/tinystories_mixer_128_f_n8/checkpoint-748000'
 
 for name, param in model.named_parameters():
 	print (name)

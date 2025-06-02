@@ -63,11 +63,10 @@ class AbbreviatedModel(nn.Module):
 		# Matrix mult instead of embedding to prevent type incompatibility
 		x = input_ids
 		position_ids = self.position_ids.repeat(input_ids.shape[0], 1).to(device)
-		# if not attention_mask is None:
-		# 	attention_mask = attention_mask.unsqueeze(1).unsqueeze(1).half()
 
 		for i in range(self.depth):
 			x = self.model.model.layers[i](x, position_ids=position_ids)[0]
+			
 		return x
 
 
@@ -108,8 +107,6 @@ def count_parameters(model):
 	print(table)
 	print(f"Total Trainable Params: {total_params}")
 	return total_params
-
-
 
 train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train"
 test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test"

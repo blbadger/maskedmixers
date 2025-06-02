@@ -1,8 +1,4 @@
 import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
 import prettytable
 from prettytable import PrettyTable
 
@@ -118,27 +114,6 @@ class LanguageMixer(nn.Module):
 		return loss, output
 
 
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
-tokenizer.pad_token = tokenizer.eos_token
-
-n_vocab = len(tokenizer)
-tokenized_length = 512
-dim = 128
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = LanguageMixer(n_vocab, dim, 1).float().to(device)
-print (model)
-
-# one = torch.tensor([[[5, 2, 3]]]).to(device)
-# two = torch.tensor([[[1, 2, 3]]]).to(device)
-# print (model(one, labels=one))
-# print (model(two, labels=two))
-# print (model)
-
-# cached dataset
-train_text = load_dataset("roneneldan/TinyStories", split="train")
-valid_text = load_dataset("roneneldan/TinyStories", split="validation")
-
 def batch_tokenize_input(train_text, test_text, length=20000, batch_size=32):
 	train_data, test_data = [], []
 	max_length = 512
@@ -165,7 +140,6 @@ def batch_tokenize_input(train_text, test_text, length=20000, batch_size=32):
 		).input_ids
 		test_data.append(input_ids)
 
-
 	return train_data, test_data
 
 train_data, test_data = batch_tokenize_input(train_text, valid_text)
@@ -178,9 +152,6 @@ def reformat_inputs(train_data, test_data):
 	for i, _ in enumerate(test_data):
 		test_data[i] = test_data[i].flatten()
 	return train_data, test_data
-
-
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
 
 def train_model():
 	model.train()
@@ -199,7 +170,28 @@ def train_model():
 			print (model.mixerblocks[0].conv[0].weight[10][:10])
 		print ('Average loss: ', total_loss / len(batch))
 
+def check_causality()
+	one = torch.tensor([[[5, 2, 3]]]).to(device)
+	two = torch.tensor([[[1, 2, 3]]]).to(device)
+	print (model(one, labels=one))
+	print (model(two, labels=two))
+	print (model)
+	return
 
+tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
+tokenizer.pad_token = tokenizer.eos_token
+
+n_vocab = len(tokenizer)
+tokenized_length = 512
+dim = 128
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = LanguageMixer(n_vocab, dim, 1).float().to(device)
+print (model)
+
+# cached dataset
+train_text = load_dataset("roneneldan/TinyStories", split="train")
+valid_text = load_dataset("roneneldan/TinyStories", split="validation")
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
 train_model()
 
 

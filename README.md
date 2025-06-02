@@ -10,7 +10,7 @@ For a less formal version of this work written as a technical blog post, see [th
 **Motivation:** Poor input representation accuracy in transformers, but much better accuracy in MLP-mixers adapted for causal language modeling (aka masked mixers)
 **Finding:** Masked mixers are approximately as efficient learners of language generation relative to transformers but are far superior for retrieval.
 
-### General Use
+### Quickstart
 
 To use this code, spin up a virtual environment and install the necessary requirements via `pip install -r requirements.txt`. If you expect to build additional features using dependency-heavy libraries like `vllm` or else want to limit the number of virtual environments you use among many repos, using `uv` to manage python packages and installing more recent compatible libraries via `requirements_updated.txt` is recommended (ie `uv pip install -r requirements.txt`). 
 
@@ -31,6 +31,25 @@ This repo expects CUDA runtime API 12.x and Python 3.10.12, although it is compa
 
 If you are using a different Python version, it is recommended that you use a python environment manager (`pyenv` etc.) to install 3.10.12 before spinning up the venv and installing dependencies. If you currently have a different CUDA major version such as 11.x, it is recommended that you use build a docker container with CUDA 12.2 or 12.3 rather than attempt to upgrade your system CUDA version, as doing so has a tendency to break existing libraries that use CUDA in very obscure ways.
 
+### Use
+
+This library is designed for operation with any number of GPUs on one node. If you have a single GPU, running
+
+```
+$ python file_name.py
+```
+
+will suffice, but if you have multiple GPUs and want to use distributed data parallel then use `torchrun` instead, as running with python will only activate the far less efficient data parallel algorithm. To run via DDP on specific GPUs, for example the first four on a node, use
+
+```
+$ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node=4 file_name.py
+```
+
+Multi-node DDP training should be possible via `transformers` and `accelerate` integration with the `torch` elastic run, but this is currently untested.
+
+```
+$ torchrun --nnodes=2 --nproc_per_node=4 file_name.py
+```
 
 ### For Experimental Replication
 

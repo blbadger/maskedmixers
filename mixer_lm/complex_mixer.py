@@ -108,10 +108,10 @@ class MixerBlock(nn.Module):
 				self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
 
 		residual = x
-		# x = self.seq_layernorm(x)
+		x = self.seq_layernorm(x)
 		x = self.conv(x) + residual
 		residual = x
-		# x = self.patch_layernorm(x)
+		x = self.patch_layernorm(x)
 		x = self.patch_ff(x) + residual
 		return x
 
@@ -138,7 +138,7 @@ class LanguageMixer(nn.Module):
 		scale = 1 / tokenized_length
 		for i in range(tokenized_length):
 			complex_position[i, :] = 0 + scale*1j * i
-			# complex_position[i, :] = np.exp(2*scale*(math.pi)*i*1j)
+			complex_position[i, :] = np.exp(2*scale*(math.pi)*i*1j)
 		self.complex_position = complex_position
 
 	def forward(self, input_ids, labels=None):
@@ -160,7 +160,6 @@ class LanguageMixer(nn.Module):
 		loss = self.cel(shift_logits, shift_labels)
 		return loss, output
 
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
 tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
@@ -170,23 +169,6 @@ tokenized_length = 64
 dim = 256
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = LanguageMixer(tokenized_length, n_vocab, dim, 1, complex_position=True)
-
-
-def count_parameters(model):
-	table = PrettyTable(["Modules", "Parameters"])
-	total_params = 0
-	print ()
-	for name, parameter in model.named_parameters():
-		if not parameter.requires_grad:
-			continue
-		params = parameter.numel()
-		table.add_row([name, params])
-		total_params += params
-	print(table)
-	print(f"Total Trainable Params: {total_params}")
-	return total_params
-
-count_parameters(model)
 
 # cached dataset
 train_text = load_dataset("roneneldan/TinyStories", split="train")
