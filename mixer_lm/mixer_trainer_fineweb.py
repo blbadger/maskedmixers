@@ -331,5 +331,5 @@ trainer = transformers.Trainer(
 )
 
 #model.train()
-#trainer.train()
-trainer.train('/home/bbadger/Desktop/finemath_autoencoding_mixer_1024_n8_b32_lpad/checkpoint-200000')
+trainer.train()
+#trainer.train('/home/bbadger/Desktop/finemath_autoencoding_mixer_1024_n8_b32_lpad/checkpoint-200000')
