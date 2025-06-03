@@ -1,25 +1,20 @@
 import os
 import torch
 import einops
-from einops import rearrange
-import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
-import torch.nn as nn
-import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import AutoModel
-from safetensors.torch import load_model, save_model, load_file
 import json
 import numpy as np
 import random
+from einops import rearrange
+import transformers
+from transformers import AutoModel, LlamaConfig, LlamaForCausalLM
+from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+import torch.nn as nn
+import mlflow
+from transformers import AutoTokenizer
+from datasets import load_dataset
+import sentencepiec
+from safetensors.torch import load_model, save_model, load_file, safe_open
 from datasets import Dataset
-from transformers import LlamaConfig, LlamaForCausalLM
-from safetensors.torch import safe_open
 
 
 def FeedForward(dim, expansion_factor=4):
@@ -166,38 +161,31 @@ class RetrievalMixer(nn.Module):
 
 class TransformerBlock(nn.Module):
 
-        def __init__(self, dim, n_samples, n_heads=4):
-                super().__init__()
-                self.attention = nn.MultiheadAttention(dim, n_heads)
-                self.patch_layernorm = nn.LayerNorm(dim)
-                self.seq_layernorm = nn.LayerNorm(dim)
-                self.dim = dim 
-                self.patch_ff = FeedForward(dim)
+	def __init__(self, dim, n_samples, n_heads=4):
+		super().__init__()
+		self.attention = nn.MultiheadAttention(dim, n_heads)
+		self.patch_layernorm = nn.LayerNorm(dim)
+		self.seq_layernorm = nn.LayerNorm(dim)
+		self.dim = dim 
+		self.patch_ff = FeedForward(dim)
 
-        def forward(self, x: torch.tensor):
-                if x.dim() > 3:
-                        x = rearrange(x, 'b p t f -> (b p) t f')
+	def forward(self, x: torch.tensor):
+		if x.dim() > 3:
+			x = rearrange(x, 'b p t f -> (b p) t f')
 
-                residual = x 
-                x = self.seq_layernorm(x)
-                key, query, value = self.key_proj(x), self.query_proj(x), self.value_proj(x)
-                x = self.attention(x) + residual
-                residual = x 
-                x = self.patch_layernorm(x)
-                x = self.patch_ff(x) + residual
-                return x
+		residual = x 
+		x = self.seq_layernorm(x)
+		key, query, value = self.key_proj(x), self.query_proj(x), self.value_proj(x)
+		x = self.attention(x) + residual
+		residual = x 
+		x = self.patch_layernorm(x)
+		x = self.patch_ff(x) + residual
+		return x
 
 class RetrievalTransformer(nn.Module):
 
 	def __init__(self, dim, depth, n_samples, n_head=4):
 		super().__init__()
-	#	self.mixerblocks = nn.ModuleList(
-	#	[TransformerBlock(
-	#		dim,
-	#		n_samples,
-		# )
-		# for i in range(depth)]
-		#).to(device)
 		self.transformerblocks = nn.ModuleList(
 		[nn.TransformerDecoderLayer(dim, n_head, dim*4) for i in range(depth)]
 		).to(device)

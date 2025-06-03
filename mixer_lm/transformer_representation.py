@@ -1,24 +1,15 @@
-import os
-
-# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"]="1"
-
-
 import transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel, AutoTokenizer
-from transformers import LlamaModel, LlamaConfig, LlamaForCausalLM
-from transformers import GPT2Config, GPT2LMHeadModel
+from transformers import LlamaModel, LlamaConfig, LlamaForCausalLM, GPT2Config, GPT2LMHeadModel
 import torch
 import random
 import numpy as np
 from torch import nn
 from torch.nn import Conv2d
 from torch.utils.data import DataLoader, Dataset
-import torchvision
 import matplotlib.pyplot as plt
 from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
 import math, random, time
-import prettytable
 from prettytable import PrettyTable
 from datasets import load_dataset
 

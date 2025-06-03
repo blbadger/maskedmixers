@@ -1,27 +1,20 @@
 import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-import os
 import torch
 import einops
+import json
+import numpy as np
+import random
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
+from transformers import AutoTokenizer
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_dataset
 import sentencepiece
 from tokenizers import ByteLevelBPETokenizer
 from transformers import AutoModel
 from safetensors.torch import load_model, save_model, load_file
-import json
-import numpy as np
-import random
 from datasets import Dataset
 from safetensors.torch import save_file
 from transformers import LlamaConfig, LlamaForCausalLM
@@ -184,7 +177,6 @@ def transformer_embed_input(input_tokens):
 		last_hidden_layers = output.hidden_states[-1][..., -1, :].detach().to('cpu')
 		# expects the model's output to be the last hidden layer
 		embeddings.append(last_hidden_layers)
-		# embeddings = torch.cat((embeddings, last_hidden_layers), dim=0)
 
 	embeddings = torch.stack(embeddings).squeeze(1)
 	return embeddings
@@ -204,11 +196,16 @@ n_vocab = len(tokenizer)
 tokenized_length = 64
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 dim = 4096
+
+# initialize a masked mixer for embedding
 gen_model = LinearMixer(n_vocab, dim, 1).float().to(device)
 load_model(gen_model, '/home/bbadger/Desktop/linear_mixer_4096.safetensors')
+
+# initialize a masked mixer for embedding
 # gen_model = LanguageMixer(n_vocab, dim, 8).float().to(device)
 # load_model(gen_model, '/home/bbadger/Desktop/tinystories/tinystories_mixer_512_flat/checkpoint-424000/model.safetensors')
 
+# initialize a llama-style transformer for embedding
 # dim = 1024
 # llama_config_kwargs = {
 #     'hidden_size': dim,
@@ -217,17 +214,14 @@ load_model(gen_model, '/home/bbadger/Desktop/linear_mixer_4096.safetensors')
 #     # 'num_heads': 4,
 #     'vocab_size': 4096
 # }
-
-# # Initializing a LLaMA model
 # configuration = LlamaConfig(**llama_config_kwargs)
-
-# # Initializing a model from the llama-7b style configuration
-# gen_model = LlamaForCausalLM(configuration).float().to(0)
+# gen_model = LlamaForCausalLM(configuration).float().to(device)
 # load_model(gen_model, '/home/bbadger/Desktop/tinystories/tinystories_llama_1024/checkpoint-108000/model.safetensors')
 
 gen_model.eval()
 target_train, target_test = embed_input(target_train_data), embed_input(target_test_data)
 
+# load the relevant summaries
 query_text = [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_60k.json'))]
 query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_60_100k.json'))]
 query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_100_200k.json'))]
@@ -239,15 +233,7 @@ query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/h
 # query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_450_500k.json'))]
 # query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_500_550k.json'))]
 
-query_train_data = batch_tokenize_input(query_text, start=start, end=split)
-query_test_data = batch_tokenize_input(query_text, start=split, end=end)
-for i in range(30):
-	print (query_text[i], train_text[i], '\n')
-query_train, query_test = embed_input(query_train_data), embed_input(query_test_data)
 
-dictionary = {'query_train': query_train, 'query_test': query_test, 'target_train': target_train, 'target_test': target_test}
-filepath = '/home/bbadger/Desktop/retrieval_4096_linear_200k.safetensors'
-save_file(dictionary, filepath)
 
 def generate_retrieval_dataset(query_embeddings, target_embeddings, n_context, multiples=10):
 	inputs = []
@@ -295,14 +281,12 @@ class RetrievalDataset(torch.utils.data.Dataset):
 		return len(self.encodings.input_ids)
 
 
-# with safe_open(filepath, framework="pt", device='cpu') as f:
-# 	target_train_embeddings, target_test_embeddings = f['target_train_embeddings'], f['target_test_embeddings']
-# 	query_train_embeddings, query_test_embeddings = f['query_train_embeddings'], f['query_test_embeddings']
+query_train_data = batch_tokenize_input(query_text, start=start, end=split)
+query_test_data = batch_tokenize_input(query_text, start=split, end=end)
+# for i in range(30):
+# 	print (query_text[i], train_text[i], '\n')
+query_train, query_test = embed_input(query_train_data), embed_input(query_test_data)
 
-
-# train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings)
-# test_dataset = RetreivalDataset(target_test_embeddings, query_test_embeddings)
-
-# n_context = 2000
-# retrieval_train_dataset = generate_retrieval_dataset(query_train, target_train, n_context)
-# retrieval_test_dataset = generate_retrieval_dataset(query_test, target_test, n_context)
+dictionary = {'query_train': query_train, 'query_test': query_test, 'target_train': target_train, 'target_test': target_test}
+filepath = '/home/bbadger/Desktop/retrieval_4096_linear_200k.safetensors'
+save_file(dictionary, filepath)

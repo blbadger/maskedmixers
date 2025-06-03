@@ -1,7 +1,4 @@
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
-import os
 import torch
 from einops import rearrange
 import torch.nn as nn
@@ -63,7 +60,6 @@ def transformer_embed_input(input_tokens):
 		last_hidden_layers = output.hidden_states[-1][..., -2, :].detach().to('cpu')
 		# expects the model's output to be the last hidden layer
 		embeddings.append(last_hidden_layers)
-		# embeddings = torch.cat((embeddings, last_hidden_layers), dim=0)
 
 	embeddings = torch.stack(embeddings).squeeze(1)
 	return embeddings

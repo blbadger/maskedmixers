@@ -1,20 +1,17 @@
 import os
-import prettytable
 from prettytable import PrettyTable
-
 import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
+from transformers import AutoTokenizer, LlamaConfig, LlamaForCausalLM
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 from datasets import load_dataset
 import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
+
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -61,8 +58,6 @@ class AbbreviatedModel(nn.Module):
 		x = input_ids.to(device)
 		position_ids = self.position_ids.repeat(input_ids.shape[0], 1).to(device)
 		position_embeddings = self.model.model.rotary_emb(x, position_ids)
-		# if not attention_mask is None:
-		# 	attention_mask = attention_mask.unsqueeze(1).unsqueeze(1).half()
 
 		for i in range(self.depth):
 			x = self.model.model.layers[i](x, position_ids=position_ids, position_embeddings=position_embeddings)[0]
@@ -189,7 +184,7 @@ if __name__ == '__main__':
 
 
 	model.train()
-	trainer.train() # '/home/bbadger/Desktop/tinystories_mixer_128_f_n8/checkpoint-748000'
+	trainer.train()
 	for name, param in model.named_parameters():
 		print (name)
 

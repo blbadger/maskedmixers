@@ -1,8 +1,3 @@
-import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
 import transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel, AutoTokenizer
 from transformers import LlamaModel, LlamaConfig, LlamaForCausalLM
@@ -27,15 +22,12 @@ from einops import rearrange, reduce
 from safetensors.torch import load_model, save_model, load_file
 from linear_mixer import LinearMixer
 
-# from mixer_autoencoder import AutoencodingMixer
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print (device)
 
 manualSeed = 1
 random.seed(manualSeed)
 torch.manual_seed(manualSeed)
-
 
 def FeedForward(dim, expansion_factor=4):
     inner_dim = int(dim * expansion_factor)
