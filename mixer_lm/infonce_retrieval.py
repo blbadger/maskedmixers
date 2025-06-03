@@ -3,7 +3,7 @@ import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
+from transformers import AutoModel, LlamaConfig, LlamaForCausalLM, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,7 +11,7 @@ import mlflow
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_dataset
 import sentencepiece
-from transformers import AutoModel, LlamaConfig, LlamaForCausalLM
+
 from safetensors.torch import load_model, save_model, load_file, safe_open
 import json
 import numpy as np
@@ -22,6 +22,7 @@ from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
 import threading
 from accelerate import init_empty_weights
 from accelerate.utils import BnbQuantizationConfig, load_and_quantize_model
+
 from mixer_autoencoder import AutoencodingMixer
 from transformer_autoencoder import AbbreviatedModel, AutoencodingTransformer
 
@@ -300,8 +301,7 @@ if __name__ == '__main__':
 		else:
 			retrieval_model = LanguageMixer(n_vocab, dim, n_layers, n_context)
 			load_model(retrieval_model, '/home/bbadger/Desktop/fineweb_mixer_512_n16_b64_c512_lpad/checkpoint-200000/model.safetensors')
-			#load_model(retrieval_model, '/home/bbadger/Desktop/finemath_mixer_1024_n16_c512_lpad/checkpoint-500000/model.safetensors')
-
+			
 	else:
 		vocab_size = 8000 # expects fineweb_tokenizer_8k
 		llama_config_kwargs = {
@@ -329,8 +329,8 @@ if __name__ == '__main__':
 
 	model = retrieval_model
 
-	#path = "/home/bbadger/Desktop/contrastive-finemath-lpad-200k.safetensors"
 	path = "/home/bbadger/Desktop/contrastive-finemath-lpad-400k.safetensors"
+	# for testing right-padding processing
 	#path = "/home/bbadger/Desktop/contrastive-finemath-rpad-200k.safetensors"
 	tokens = {}
 	with safe_open(path, framework="pt", device='cpu') as f:
@@ -368,4 +368,3 @@ if __name__ == '__main__':
 	)
 
 	trainer.train()
-	#trainer.train("/home/bbadger/Desktop/contrastive_finemath_mixer_500k_1024_n16_b32/checkpoint-95000")

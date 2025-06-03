@@ -3,23 +3,23 @@ import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 from datasets import load_dataset, load_from_disk
 import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
 from transformers import LlamaConfig, LlamaForCausalLM
 import prettytable
 from prettytable import PrettyTable
 from safetensors.torch import save_file
 from safetensors import safe_open
 import datasets
+
 from transformer_autoencoder import AbbreviatedModel, AutoencodingTransformer
 
-device = 0 if torch.cuda.is_available else 'cpu'
+device = 'cuda' if torch.cuda.is_available else 'cpu'
 
 dim = 512
 context_length = 512
@@ -36,34 +36,31 @@ llama_config_kwargs = {
 configuration = LlamaConfig(**llama_config_kwargs)
 
 # Initializing a model from the llama-7b style configuration
-#model = LlamaForCausalLM(configuration).float()
+model = LlamaForCausalLM(configuration).float()
 
+# uncomment for transformer autoencoder
 # Initializing a model from the llama-7b style configuration
-encoder_model = AbbreviatedModel(LlamaForCausalLM(configuration), tokenized_length=context_length)
-decoder_model = AbbreviatedModel(LlamaForCausalLM(configuration), tokenized_length=context_length)
-model = AutoencodingTransformer(vocab_size, dim, encoder_model, decoder_model, tokenized_length=context_length)
+# encoder_model = AbbreviatedModel(LlamaForCausalLM(configuration), tokenized_length=context_length)
+# decoder_model = AbbreviatedModel(LlamaForCausalLM(configuration), tokenized_length=context_length)
+# model = AutoencodingTransformer(vocab_size, dim, encoder_model, decoder_model, tokenized_length=context_length)
 
-# cached dataset
-# train_text = load_dataset("roneneldan/TinyStories", split="train")
-# valid_text = load_dataset("roneneldan/TinyStories", split="validation")
-
+# uncomment for GPT-1 initialization
 # gpt_config = transformers.OpenAIGPTConfig(vocab_size=8000, n_positions=512, n_embd=512, n_layer=16, n_head=4)
 # model = transformers.OpenAIGPTLMHeadModel(gpt_config)
 
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_8k")
 tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
-print (tokenizer.is_fast)
-#print (model)
 
-# Causal mask check
-# model = model.to(device)
-# one = torch.tensor([[1, 2, 5]]).to(device)
-# two = torch.tensor([[1, 2, 3]]).to(device)
-# print (model(one, labels=one).logits)
-# print (model(two, labels=two).logits)
-# print (model)
+def model_causality():
+	# Causal mask check
+	model = model.to(device)
+	one = torch.tensor([[1, 2, 5]]).to(device)
+	two = torch.tensor([[1, 2, 3]]).to(device)
+	print (model(one, labels=one).logits)
+	print (model(two, labels=two).logits)
+	print (model)
+	return
 
 def count_parameters(model):
 	table = PrettyTable(["Modules", "Parameters"])
@@ -78,8 +75,6 @@ def count_parameters(model):
 	print(table)
 	print(f"Total Trainable Params: {total_params}")
 	return total_params
-
-count_parameters(model)
 
 def tokenization(example):
     tokens = tokenizer.batch_encode_plus(
@@ -107,14 +102,6 @@ def map_dataset(train_path, test_path, split_index=50000):
 	test_dataset.save_to_disk(test_path)
 	print ('datasets saved to disk')
 	return
-
-train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
-test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
-
-#map_dataset(train_path, test_path)
-datasets.config.IN_MEMORY_MAX_SIZE = 35e9
-train_dataset = load_from_disk(train_path)
-test_dataset = load_from_disk(test_path)
 
 def tokenize_input(train_text, test_text):
 	train_data, test_data = [], []
@@ -162,6 +149,15 @@ def tokenize_input(train_text, test_text):
 
 	return train_data, test_data
 
+count_parameters(model)
+train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
+test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
+
+#map_dataset(train_path, test_path)
+datasets.config.IN_MEMORY_MAX_SIZE = 35e9
+train_dataset = load_from_disk(train_path)
+test_dataset = load_from_disk(test_path)
+
 tokenize=False
 if tokenize:
 	print ('tokenizing input')
@@ -172,7 +168,6 @@ if tokenize:
 	'train_data': torch.stack(train_data, dim=0), 
 	'test_data': torch.stack(test_data, dim=0)
 	}
-
 	save_file(data_dict, '/home/bbadger/Desktop/tokenized_fineweb10b_16k.safetensors')
 	print ('tokens saved')
 
@@ -224,4 +219,3 @@ trainer = transformers.Trainer(
 
 model.train()
 trainer.train() 
-#trainer.train('/home/bbadger/Desktop/finemath_llama_n16_h4_lpad_c512/checkpoint-76000')

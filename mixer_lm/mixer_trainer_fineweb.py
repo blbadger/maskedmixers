@@ -4,11 +4,11 @@ import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 from datasets import load_dataset, load_from_disk
 import sentencepiece
 from safetensors import safe_open
@@ -108,8 +108,6 @@ class MixerBlock(nn.Module):
 		else:
 			self.conv = nn.Conv1d(length, length, 1, padding='same')
 		self.expand_conv = expand_conv
-		#heads = 4
-		#self.mixerhead = MixerHead(1024, 512, 512, heads)
 
 	def forward(self, x: torch.tensor):
 		if x.dim() > 3:
@@ -157,7 +155,7 @@ class MixerHead(nn.Module):
 			)
 
 		self.out_proj = nn.Linear(dim*n_heads, dim)
-		self.softmax = nn.Softmax(dim=-1)		
+		self.softmax = nn.Softmax(dim=-1)
 		self.GeLU = nn.GELU()
 
 	def forward(self, x: torch.tensor):
@@ -263,6 +261,8 @@ print ('Vocab size: ', n_vocab)
 tokenized_length = 512
 dim = 1024
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+# mixer model initialization
 #model = MultiHeadedMixer(n_vocab, dim, 8, heads=4).float().to(device)
 #model = LanguageMixer(n_vocab, dim, 16).float()
 model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
@@ -297,6 +297,7 @@ def map_dataset(train_path, test_path, split_index=50000):
 	print ('datasets saved to disk')
 	return
 
+# if you have a new dataset, map before loading from disk
 #map_dataset(train_path, test_path)
 datasets.config.IN_MEMORY_MAX_SIZE = 50e9
 train_dataset = load_from_disk(train_path, keep_in_memory=None)
@@ -330,6 +331,4 @@ trainer = transformers.Trainer(
 	data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
 )
 
-#model.train()
 trainer.train()
-#trainer.train('/home/bbadger/Desktop/finemath_autoencoding_mixer_1024_n8_b32_lpad/checkpoint-200000')

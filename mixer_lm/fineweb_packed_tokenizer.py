@@ -20,7 +20,7 @@ def packed_tokenization(example, n_ctx=32):
 			padding=False,
 		).input_ids
     tokens = torch.flatten(tokens, start_dim=0)
-    batch_size = len(tokens) // n_ctx #if len(tokens) % n_ctx==0 else len(tokens) // n_ctx + 1
+    batch_size = len(tokens) // n_ctx
     length = n_ctx * batch_size
     #tokens = tokenizer.pad(tokens, padding='max_length', max_length=length, padding_side='right')
     tokens = tokens[:length].reshape(batch_size, n_ctx)
@@ -38,15 +38,15 @@ def tokenization(example, n_ctx=512):
 		)
 	return tokens
 
-train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
-test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
-
 def map_dataset(train_path, test_path, split_index=50000, packed=False):
 	"""
 	Map dataset to tokens. Suitable for large datasets, note that split_index is low (5k means hold out 5k rows from training)
 	"""
+	# fineweb loaders
 	#train_text = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT", streaming=False).skip(split_index)
 	#test_text = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT", streaming=False).take(split_index)
+
+	# finemath loaders
 	train_text = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=16).skip(split_index)
 	test_text = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=16).take(split_index)
 		
@@ -64,7 +64,6 @@ def map_dataset(train_path, test_path, split_index=50000, packed=False):
 	print ('Datasets saved to disk')
 	return
 
-
 def debatch(example):
 	batch_size = len(example['input_ids'])
 	keys = list(example.keys())
@@ -75,9 +74,11 @@ def debatch(example):
 	if not debatched_inputs: return [{'input_ids': torch}]
 	return pa.Table.from_pylist(debatched_inputs)
 
+train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
+test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
 
 if __name__ == '__main__':
-	packed=False
+	packed=True
 	map_dataset(train_path, test_path, packed=packed)
 	train_dataset = load_from_disk(train_path)
 	test_dataset = load_from_disk(test_path)

@@ -6,17 +6,14 @@ import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 from datasets import load_dataset
 import sentencepiece
 from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
-
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -249,6 +246,7 @@ if __name__ == '__main__':
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 	model = LanguageMixer(n_vocab, dim, 8, length)
 
+	# check causality
 	# one = torch.tensor([[[1, 2, 3]]]).to(device)
 	# two = torch.tensor([[[1, 4, 3]]]).to(device)
 	# print (model(one, labels=one))
@@ -272,11 +270,6 @@ if __name__ == '__main__':
 		for i, _ in enumerate(test_data):
 			test_data[i] = test_data[i].flatten()
 		return train_data, test_data
-
-
-	if isinstance(model, LlamaForCausalLM):
-		reformat_inputs(train_data, test_data)
-
 
 	mlflow.end_run()
 	print ('training begun')

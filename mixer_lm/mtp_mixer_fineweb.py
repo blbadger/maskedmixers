@@ -1,10 +1,7 @@
-import prettytable
-from prettytable import PrettyTable
 import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
@@ -13,8 +10,10 @@ from datasets import load_dataset, load_from_disk
 import sentencepiece
 from safetensors import safe_open
 from safetensors.torch import save_file
-from mixer_multiconv import MultiHeadedMixer
 import datasets
+from prettytable import PrettyTable
+
+from mixer_multiconv import MultiHeadedMixer
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -32,7 +31,6 @@ def ConvForward(dim, expansion_factor=1):
 		nn.Conv1d(inner_dim, dim, 1)
 		)
 
-
 class MixerBlock(nn.Module):
 
 	def __init__(self, dim, length=512, expand_conv=False):
@@ -47,8 +45,6 @@ class MixerBlock(nn.Module):
 		else:
 			self.conv = nn.Conv1d(length, length, 1, padding='same')
 		self.expand_conv = expand_conv
-		#heads = 4
-		#self.mixerhead = MixerHead(1024, 512, 512, heads)
 
 	def forward(self, x: torch.tensor):
 		if x.dim() > 3:
@@ -229,6 +225,7 @@ def map_dataset(train_path, test_path, split_index=50000):
 	print ('datasets saved to disk')
 	return
 
+# map dataset if new
 #map_dataset(train_path, test_path)
 datasets.config.IN_MEMORY_MAX_SIZE = 50e9
 train_dataset = load_from_disk(train_path, keep_in_memory=None)
@@ -263,5 +260,5 @@ trainer = transformers.Trainer(
 )
 
 model.train()
-#trainer.train()
-trainer.train('/home/bbadger/Desktop/mtp_fineweb_mixer_1024_n16_c512/checkpoint-144000')
+trainer.train()
+

@@ -7,9 +7,6 @@ import time
 import torch
 from transformers import AutoTokenizer, BatchEncoding
 
-dataset = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT")
-old_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
-
 class TextDataset(torch.utils.data.Dataset):
     """
     Create a Dataset object from a file consisting of lines of strings
@@ -38,10 +35,6 @@ class TextDataset(torch.utils.data.Dataset):
         batch = self.line_batches[idx]
         return batch
 
-# Create the dataset, and process the full file. 
-# dataset = TextDataset(dataset, batch_size=1024)
-# DataLoader for efficient batch processing
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=None)
 
 def get_training_corpus(dataset, batch_size=1):
     #dataset = dataset["train"]
@@ -49,10 +42,20 @@ def get_training_corpus(dataset, batch_size=1):
         sample = dataset[i]
         yield sample['text']
 
-training_corpus = get_training_corpus(dataset)
-# print (next(training_corpus))
 
-# Train the new tokenizer
-tokenizer = old_tokenizer.train_new_from_iterator(training_corpus, 128000)
-tokenizer.save_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_128k")
-print ("Tokenizer saved")
+if __name__ == '__main__':
+    dataset = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT")
+    old_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
+
+    # Create the dataset, and process the full file. 
+    dataset = TextDataset(dataset, batch_size=1024)
+
+    # DataLoader for efficient batch processing
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=None)
+
+    training_corpus = get_training_corpus(dataset)
+
+    # Train the new tokenizer
+    tokenizer = old_tokenizer.train_new_from_iterator(training_corpus, 128000)
+    tokenizer.save_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_128k")
+    print ("Tokenizer saved")

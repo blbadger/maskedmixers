@@ -1,18 +1,14 @@
 import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
 import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
+from transformers.modeling_outputs import CausalLMOutputWithPast
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 from datasets import load_dataset
 import sentencepiece
 from tokenizers import ByteLevelBPETokenizer
@@ -22,7 +18,6 @@ from prettytable import PrettyTable
 import typing
 from typing import Optional, Union
 from torch.nn import CrossEntropyLoss
-from transformers.modeling_outputs import CausalLMOutputWithPast
 
 device = 'cuda' if torch.cuda.is_available else 'cpu'
 
@@ -77,14 +72,11 @@ class AutoLlama(LlamaForCausalLM):
 
 		loss = None
 		if labels is not None:
-			# loss = loss_fct(logits.view(-1, self.config.vocab_size), labels.view(-1))
 			# Shift so that tokens < n predict n
 			shift_logits = logits[..., :-1, :].contiguous()
 			shift_labels = labels[..., 1:].contiguous()
-			# Flatten the tokens
 			shift_logits = shift_logits.view(-1, self.config.vocab_size)
 			shift_labels = shift_labels.view(-1)
-			# Enable model parallelism
 			shift_labels = shift_labels.to(shift_logits.device)
 			loss = loss_fct(shift_logits, shift_labels)
 
@@ -100,27 +92,6 @@ class AutoLlama(LlamaForCausalLM):
 			attentions=outputs.attentions,
 		)
 
-dim = 512
-llama_config_kwargs = {
-	'hidden_size': dim,
-	'intermediate_size': 4*dim,
-	'num_hidden_layers': 8,
-	'num_attention_heads': 8,
-	'vocab_size': 4096
-}
-
-# Initializing a LLaMA model
-configuration = LlamaConfig(**llama_config_kwargs)
-
-# Initializing a model from the llama-7b style configuration
-model = AutoLlama(configuration).float()
-
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
-tokenizer.pad_token = tokenizer.eos_token
-n_vocab = len(tokenizer)
-print (model)
-
 def count_parameters(model):
 	table = PrettyTable(["Modules", "Parameters"])
 	total_params = 0
@@ -134,11 +105,6 @@ def count_parameters(model):
 	print(table)
 	print(f"Total Trainable Params: {total_params}")
 	return total_params
-
-count_parameters(model)
-
-train_text = load_dataset("roneneldan/TinyStories", split="train")
-valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 
 def tile_inputs(input_ids, tile_overlap=100, tile_size=828):
 	text_length = len(input_ids[0])
@@ -199,8 +165,6 @@ def batch_tokenize_input(train_text, test_text, length=2000000, batch_size=1024)
 
 	return train_data, test_data
 
-train_data, test_data = batch_tokenize_input(train_text, valid_text)
-# train_data, test_data = debetach_input(train_data), debatch_input(test_data)
 
 def reformat_inputs(train_data, test_data):
 	# reformat inputs for transformer model
@@ -211,10 +175,35 @@ def reformat_inputs(train_data, test_data):
 		test_data[i] = test_data[i].flatten()
 	return train_data, test_data
 
+train_text = load_dataset("roneneldan/TinyStories", split="train")
+valid_text = load_dataset("roneneldan/TinyStories", split="validation")
+
+dim = 512
+llama_config_kwargs = {
+	'hidden_size': dim,
+	'intermediate_size': 4*dim,
+	'num_hidden_layers': 8,
+	'num_attention_heads': 8,
+	'vocab_size': 4096
+}
+
+# Initializing a LLaMA model
+configuration = LlamaConfig(**llama_config_kwargs)
+
+# Initializing a model from the llama-7b style configuration
+model = AutoLlama(configuration).float()
+
+tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
+tokenizer.pad_token = tokenizer.eos_token
+n_vocab = len(tokenizer)
+print (model)
+count_parameters(model)
+
+train_data, test_data = batch_tokenize_input(train_text, valid_text)
+# train_data, test_data = debetach_input(train_data), debatch_input(test_data)
 
 if isinstance(model, LlamaForCausalLM):
 	reformat_inputs(train_data, test_data)
-
 
 mlflow.end_run()
 training_arguments = transformers.TrainingArguments(
@@ -242,4 +231,4 @@ trainer = transformers.Trainer(
 
 model = model.to(0)
 model.train()
-trainer.train('/home/bbadger/Desktop/tinystories_autollama_512_n8/checkpoint-164000') # '/home/bbadger/Desktop/tinystories_autollama_512_n8/checkpoint-284000'
+trainer.train('/home/bbadger/Desktop/tinystories_autollama_512_n8/checkpoint-164000')

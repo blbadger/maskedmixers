@@ -3,15 +3,14 @@ import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
+from transformers import LlamaConfig, LlamaForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 from datasets import load_dataset, load_from_disk
 import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
 import prettytable
 from prettytable import PrettyTable
 from safetensors.torch import save_file
@@ -61,7 +60,6 @@ class MTPTransformer(nn.Module):
 
 
 model = MTPTransformer(model, n_tokens=2)
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_8k")
 tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
@@ -102,5 +100,4 @@ trainer = transformers.Trainer(
 )
 
 model.train()
-#trainer.train()
-trainer.train('/home/bbadger/Desktop/mtp_fineweb_llama_512_n16_c512/checkpoint-152000')
+trainer.train()

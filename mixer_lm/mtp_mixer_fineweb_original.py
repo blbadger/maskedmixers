@@ -1,20 +1,20 @@
-import prettytable
 from prettytable import PrettyTable
 import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 from datasets import load_dataset, load_from_disk
 import sentencepiece
 from safetensors import safe_open
 from safetensors.torch import save_file
-from mixer_multiconv import MultiHeadedMixer
 import datasets
+
+from mixer_multiconv import MultiHeadedMixer
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -32,7 +32,6 @@ def ConvForward(dim, expansion_factor=1):
 		nn.Conv1d(inner_dim, dim, 1)
 		)
 
-
 class MixerBlock(nn.Module):
 
 	def __init__(self, dim, length=512, expand_conv=False):
@@ -47,8 +46,6 @@ class MixerBlock(nn.Module):
 		else:
 			self.conv = nn.Conv1d(length, length, 1, padding='same')
 		self.expand_conv = expand_conv
-		#heads = 4
-		#self.mixerhead = MixerHead(1024, 512, 512, heads)
 
 	def forward(self, x: torch.tensor):
 		if x.dim() > 3:
@@ -188,8 +185,10 @@ print ('Vocab size: ', n_vocab)
 tokenized_length = 512
 dim = 1024
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 #model = MultiHeadedMixer(n_vocab, dim, 8, heads=4).float().to(device)
 model = LanguageMixer(n_vocab, dim, 16).float()
+
 count_parameters(model)
 train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c512"
 test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test-c512"
@@ -254,5 +253,5 @@ trainer = transformers.Trainer(
 )
 
 model.train()
-#trainer.train()
-trainer.train('/home/bbadger/Desktop/mtp_fineweb_mixer_1024_n16_c512/checkpoint-144000')
+trainer.train()
+

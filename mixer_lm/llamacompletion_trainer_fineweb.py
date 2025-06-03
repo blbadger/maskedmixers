@@ -1,11 +1,7 @@
-import prettytable
-from prettytable import PrettyTable
-
 import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
@@ -36,12 +32,7 @@ class AutoencodingTransformer(nn.Module):
 		x = self.wte(x)
 		
 		x = self.encoder(x)
-		x[:, self.split_i:, :] = 0 # mask 
-
-		# encoder_embedding = x[:, -1, :].unsqueeze(1) # dim=[batch, token, hidden]
-		# encoder_embedding = encoder_embedding.repeat(1, self.tokenized_length, 1)
-		# x = encoder_embedding
-
+		x[:, self.split_i:, :] = 0 # mask second half
 		x = self.decoder(x)
 
 		output = self.lm_head(x)
@@ -63,8 +54,6 @@ class AbbreviatedModel(nn.Module):
 		# Matrix mult instead of embedding to prevent type incompatibility
 		x = input_ids
 		position_ids = self.position_ids.repeat(input_ids.shape[0], 1).to(device)
-		# if not attention_mask is None:
-		# 	attention_mask = attention_mask.unsqueeze(1).unsqueeze(1).half()
 
 		for i in range(self.depth):
 			x = self.model.model.layers[i](x, position_ids=position_ids)[0]
@@ -131,7 +120,7 @@ trainer = transformers.Trainer(
 
 
 model.train()
-trainer.train() # '/home/bbadger/Desktop/tinystories_mixer_128_f_n8/checkpoint-748000'
+trainer.train()
 for name, param in model.named_parameters():
 	print (name)
 

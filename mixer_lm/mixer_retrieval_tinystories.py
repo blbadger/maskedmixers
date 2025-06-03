@@ -3,18 +3,16 @@ import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 from datasets import load_dataset
 import sentencepiece
 from tokenizers import ByteLevelBPETokenizer
 from transformers import AutoModel
 from safetensors.torch import load_model, save_model, load_file
-
 
 
 def FeedForward(dim, expansion_factor=4):
@@ -105,13 +103,7 @@ class LanguageMixer(nn.Module):
 		for block in self.mixerblocks:
 			x = block(x)
 		output = x
-		# output = self.lm_head(x)
-		# labels = rearrange(labels, 'b p t -> b (p t)')
-		# output = rearrange(output, 'b t e -> b e t')
-		# labels = labels.to(device)
-		# shift_logits = output[..., :-1].contiguous()
-		# shift_labels = labels[..., 1:].contiguous()
-		# loss = self.cel(shift_logits[..., -100:], shift_labels[..., -100:])
+		# no head, only embeddings
 		return output
 
 
@@ -260,7 +252,6 @@ train_text = load_dataset("roneneldan/TinyStories", split="train")
 valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 
 train_data, test_data = batch_tokenize_input(train_text, valid_text)
-# train_data, test_data = debatch_input(train_data), debatch_input(test_data)
 n_vocab = len(tokenizer)
 
 # barebones MLP mixer, expects an embedding on input tokens
@@ -280,7 +271,6 @@ text = tokenizer.decode(tokens[0][0])
 print (text)
 
 prompt = 'Roxy the Rhinoceros learns to climb a hill with her friend Billy.'
-# prompt = 'A little boy named Tim and a girl Sue trade a ball for a doll but it ends badly.'
 tokens = tokenizer.encode(
 	prompt,
 	add_special_tokens=False,

@@ -4,9 +4,7 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel, AutoTokenizer
-from transformers import LlamaModel, LlamaConfig, LlamaForCausalLM
-from transformers import GPT2Config, GPT2LMHeadModel
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel, AutoTokenizer, LlamaModel, LlamaConfig, LlamaForCausalLM
 import torch
 import random
 import numpy as np
@@ -15,9 +13,7 @@ from torch.nn import Conv2d
 from torch.utils.data import DataLoader, Dataset
 import torchvision
 import matplotlib.pyplot as plt
-from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
 import math, random, time
-import prettytable
 from prettytable import PrettyTable
 from datasets import load_dataset
 
@@ -25,14 +21,6 @@ import einops
 from functools import partial 
 from einops import rearrange, reduce
 from safetensors.torch import load_model, save_model, load_file
-# from mixer_autoencoder import AutoencodingMixer
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print (device)
-
-manualSeed = 1
-random.seed(manualSeed)
-torch.manual_seed(manualSeed)
 
 
 def FeedForward(dim, expansion_factor=4):
@@ -215,6 +203,13 @@ def count_parameters(model):
     return total_params
 
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print (device)
+
+manualSeed = 1
+random.seed(manualSeed)
+torch.manual_seed(manualSeed)
+
 if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
@@ -237,6 +232,7 @@ if __name__ == "__main__":
             train_text = load_dataset("roneneldan/TinyStories", split="train")
             valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 
+            # short OOD prompts
             # prompts = [
             # 'Mario, the Idea, versus Mario, the Man', 
             # 'An apple a day keeps the doctor away',
@@ -251,10 +247,10 @@ if __name__ == "__main__":
             # ]
 
             prompts = [text for text in valid_text[:10]['text']]
-            # print (prompts[0])
 
             tokenizer.pad_token = tokenizer.eos_token
             hamming_metrics = []
+
             # for safetensors
             print (root + dir)
             load_model(model, root + dir + '/model.safetensors')
@@ -275,10 +271,10 @@ if __name__ == "__main__":
                 embedding = og_model.wte(tokens)
 
                 shifted_embedding = embedding + 0.05*torch.randn(embedding.shape).to(device)
-                # print (f'Shifted embedding distance: {torch.sum(torch.abs(embedding - shifted_embedding))}')
+                print (f'Shifted embedding distance: {torch.sum(torch.abs(embedding - shifted_embedding))}')
                 embedding_weight = og_model.wte.weight.float() # convert to float in case model is in 16-bit precision
                 inverse_embedding = torch.linalg.pinv(embedding_weight.cpu()).to(device)
-                # print ('inverse embedding computed')
+                print ('inverse embedding computed')
                 logits = torch.matmul(shifted_embedding.float(), inverse_embedding.float()) # invert embedding transformations
                 tokens = torch.argmax(logits, dim=2)[0]
 
@@ -286,14 +282,14 @@ if __name__ == "__main__":
                 with torch.no_grad():
                     shifted_target_tensor = a_model(shifted_embedding).to(device)
                     target_tensor = a_model(embedding).to(device)
-                # print (f'Shifted output distance: {torch.sum(torch.abs(shifted_target_tensor - target_tensor))}')
+                print (f'Shifted output distance: {torch.sum(torch.abs(shifted_target_tensor - target_tensor))}')
 
                 embedding = embedding.detach()
                 generated_input = generate_singleinput(a_model, target_tensor)
                 g_input = generated_input
 
                 generated_target_tensor = a_model(g_input).to(device)
-                # print (f'Generated output distance: {torch.sum(torch.abs(generated_target_tensor - target_tensor))}')
+                print (f'Generated output distance: {torch.sum(torch.abs(generated_target_tensor - target_tensor))}')
 
                 logits = torch.matmul(generated_input, inverse_embedding)
                 topk_k = 5
@@ -301,14 +297,14 @@ if __name__ == "__main__":
 
                 for i in range(1):
                     output = tokenizer.decode([o[i] for o in generated_tokens])
-                    # print (output)
+                    print (output)
                     break
 
-                # print ('\n')
-                # print (generated_tokens.shape)
                 metric = hamming_metric(tokens, generated_tokens)
                 print (metric)
                 hamming_metrics.append(metric)
+
             hammings.append(hamming_metrics)
             print (f'Hamming metrics for dim {d}: ', hamming_metrics)
+
         print (hammings)

@@ -1,15 +1,8 @@
 import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-import os
 import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
@@ -37,9 +30,6 @@ llama_config_kwargs = {
 
 # Initializing a LLaMA model
 configuration = LlamaConfig(**llama_config_kwargs)
-
-# Initializing a model from the llama-7b style configuration
-# model = LlamaForCausalLM(configuration).float()
 
 class PositionalEncoding(nn.Module):
 
@@ -85,15 +75,9 @@ class LanguageTransformer(nn.Module):
 		loss = self.cel(shift_logits, shift_labels)
 		return loss, output
 
-# model = LanguageTransformer(4096, 512, 8)
+
 gpt_config = transformers.OpenAIGPTConfig(vocab_size=4096, n_positions=512, n_embd=512, n_layer=8, n_head=4)
 model = transformers.OpenAIGPTLMHeadModel(gpt_config)
-
-# gpt_config = transformers.GPT2Config(vocab_size=4096, n_positions=512, n_embd=512, n_layer=8, n_head=4)
-# model = transformers.GPT2LMHeadModel(gpt_config)
-
-# gpt_config = transformers.OpenAIGPTConfig(vocab_size=4096, n_positions=512, n_embd=512, n_layer=8, n_head=4)
-# model = transformers.OpenAIGPTLMHeadModel(gpt_config)
 
 # tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
@@ -205,9 +189,6 @@ def tokenize_input(train_text, test_text):
 
 		if len(input_ids[0]) > max_length:
 			pass
-			# input_set = tile_inputs(input_ids, tile_size=max_length)
-			# for inp in input_set:
-			# 	train_data.append(inp)
 		else:
 			train_data.append(input_ids)
 
@@ -224,28 +205,11 @@ def tokenize_input(train_text, test_text):
 
 			if len(input_ids[0]) > max_length:
 				pass
-				# input_set = tile_inputs(
-				# 	input_ids,
-				# 	tile_size=max_length
-				# )
-				# for inp in input_set:
-				# 	test_data.append(inp)
 			else:
 				test_data.append(input_ids)
 
 	return train_data, test_data
 
-
-# train_data, test_data = batch_tokenize_input(train_text, valid_text)
-# train_data, test_data = debach_input(train_data), debatch_input(test_data)
-
-#data_dict = {
-#	'train_data': torch.stack(train_data, dim=0), 
-#	'test_data': torch.stack(test_data, dim=0)
-#}
-
-#save_file(data_dict, '/home/bbadger/Desktop/tinystories_tokens.safetensors')
-#print ('tokens saved')
 tensors = {}
 with safe_open("/home/bbadger/Desktop/tinystories_tokens.safetensors", framework="pt", device="cpu") as f:
    for key in f.keys():
@@ -294,5 +258,4 @@ trainer = transformers.Trainer(
 )
 
 model.train()
-trainer.train() # '/home/bbadger/Desktop/tinystories_llama_256/checkpoint-96000'
-# trainer.train('/home/bbadger/Desktop/tinystories_autollama_512_n8/checkpoint-164000') # '/home/bbadger/Desktop/tinystories_autollama_512_n8/checkpoint-284000'
+trainer.train()

@@ -183,12 +183,15 @@ if __name__ == '__main__':
 		bnb_4bit_compute_dtype=torch.float16
 	)
 
-	# device = 'cuda' if torch.cuda.is_available() else 'cpu'
-	# tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/e5-mistral-7b-instruct")
-	# model = AutoModel.from_pretrained("/home/bbadger/Desktop/e5-mistral-7b-instruct", quantization_config=bnb_config, device_map='auto')
-	# #model = AutoModel.from_pretrained("/home/bbadger/Desktop/e5-mistral-7b-instruct", torch_dtype=torch.float16, device_map='auto')
-	# reverse_tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_8k")
+	device = 'cuda' if torch.cuda.is_available() else 'cpu'
+	tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/e5-mistral-7b-instruct")
+	model = AutoModel.from_pretrained("/home/bbadger/Desktop/e5-mistral-7b-instruct", quantization_config=bnb_config, device_map='auto')
+
+	# test for degradation versus 16-bit quantization
+	#model = AutoModel.from_pretrained("/home/bbadger/Desktop/e5-mistral-7b-instruct", torch_dtype=torch.float16, device_map='auto')
+
+	reverse_tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_8k")
 
 	path = '/home/bbadger/Desktop/finemath_mistral_retrieval_200k_test.safetensors'
-	# generate_embeddings(path)
+	generate_embeddings(path)
 	benchmark_embeddings(path, n_context=8192)

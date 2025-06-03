@@ -14,8 +14,8 @@ from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
 import threading
 from einops import rearrange
 from tqdm import tqdm
-from safetensors.torch import load_model, save_model, load_file, safe_open
-from safetensors.torch import save_file
+from safetensors.torch import load_model, save_model, load_file, safe_open, save_file
+
 from mixer_autoencoder import AutoencodingMixer
 
 def FeedForward(dim, expansion_factor=4):
@@ -362,54 +362,11 @@ def load_dataset(finemath=True, second=True):
 
 	return query_dataset, target_dataset
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
 	path = '/home/bbadger/Desktop/finemath_transformer_autoencoder_400k.safetensors'
 	generate_embeddings(path, index=-1)
 	contexts = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
 	for context in contexts:
 		print (f'Context size: {context}')
 		benchmark_embeddings(path, n_context=context)
-
-	# query_dataset, target_dataset = load_dataset()
-	# total_correct = 0
-	# total = 0
-	# start, stop = 380000, 400000
-	# for i in tqdm(range(start, stop)):
-	# 	# Each query must come with a one-sentence instruction that describes the task
-	# 	n_samples = 32
-	# 	queries = [
-	# 		query_dataset[i]
-	# 	]
-	# 	# No need to add instruction for retrieval documents
-	# 	samples, target_index = generate_sample(query_dataset, target_dataset, i, start_index=start, n_context=n_samples)
-
-	# 	#samples[0] = str(queries[0])
-	# 	samples[0] = query_dataset[i]
-	# 	max_length = 512
-	# 	# Tokenize the input texts
-		
-	# 	batch_dict = tokenizer.batch_encode_plus(
-	# 			samples,
-	# 			add_special_tokens=False,
-	# 			return_tensors='pt',
-	# 			truncation=True,
-	# 			padding='max_length',
-	# 			padding_side='left', 
-	# 			max_length=max_length
-	# 		).to(device)
-	# 	with torch.no_grad():
-	# 		outputs = retrieval_model(batch_dict.input_ids, [i], [])
-	# 		embeddings = outputs[:, -2, :]
-	# 		# normalize embeddings
-	# 		embeddings = F.normalize(embeddings, p=2, dim=1)
-	# 		scores = (embeddings[:1] @ embeddings[1:].T) * 100
-	# 		top_index = int(torch.topk(scores, 1).indices[0])
-	# 		total += 1
-	# 		if top_index+1 == target_index:
-	# 			total_correct += 1
-	# 		if i % 50 == 0: 
-	# 			print ('Top index, target index', top_index, target_index)
-	# 			print (f'Top-1 accuracy: ', total_correct / total)
-
-	

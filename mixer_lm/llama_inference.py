@@ -92,32 +92,6 @@ class LanguageMixer(nn.Module):
 			loss = 0
 		return loss, output
 
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
-# model = AutoModel.from_pretrained('/home/bbadger/Desktop/tinystories_mixer/checkpoint-15000')
-tokenizer.pad_token = tokenizer.eos_token
-n_vocab = len(tokenizer)
-
-# barebones MLP mixer, expects an embedding on input tokens
-tokenized_length = 512
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-dim = 256
-llama_config_kwargs = {
-    'hidden_size': dim,
-    'intermediate_size': 4*dim,
-    'num_hidden_layers': 8,
-    # 'num_heads': 16,
-    'vocab_size': 4096
-}
-
-# Initializing a LLaMA model
-configuration = LlamaConfig(**llama_config_kwargs)
-
-# Initializing a model from the llama-7b style configuration
-model = LlamaForCausalLM(configuration).float()
-
-
-load_model(model, '/home/bbadger/Desktop/tinystories/tinystories_llama_256/checkpoint-96000/model.safetensors')
 
 def debatch_input(input_data):
 	output = []
@@ -159,12 +133,34 @@ def batch_tokenize_input(train_text, test_text, length=2000, batch_size=1024):
 
 	return train_data, test_data
 
+
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
 tokenizer.pad_token = tokenizer.eos_token
+n_vocab = len(tokenizer)
+
+tokenized_length = 512
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+dim = 256
+llama_config_kwargs = {
+    'hidden_size': dim,
+    'intermediate_size': 4*dim,
+    'num_hidden_layers': 8,
+    'num_attention_heads': 16, # define attention head number here
+    'vocab_size': 4096
+}
+
+# Initializing a LLaMA model
+configuration = LlamaConfig(**llama_config_kwargs)
+
+# Initializing a model from the llama-7b style configuration
+model = LlamaForCausalLM(configuration).float()
+load_model(model, '/home/bbadger/Desktop/tinystories/tinystories_llama_256/checkpoint-96000/model.safetensors')
 
 train_text = load_dataset("roneneldan/TinyStories", split="train")
 valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 
+# find a specific input
 for i, text in enumerate(valid_text):
 	if text['text'].startswith('One day, a little boy named Tim went to play with his friend, Sam'):
 		print (i)
@@ -176,21 +172,9 @@ print (tokenizer.decode(tokens[0]))
 print (model(tokens[..., -50:], labels=tokens[..., -50:]).loss)
 gen = True
 if gen:
-	# tokens = tokenizer.encode(
-	# 		string,
-	# 		add_special_tokens=False,
-	# 		return_tensors='pt'
-	# 	)
-	# print (tokens)
 	output = model.generate(tokens, max_new_tokens=50)
 	output = tokenizer.decode(output[0])
 	print (output, "\n")
-
-# output = model(tokens).logits
-# output = torch.topk(output, dim=2, k=1).indices
-# output = output.flatten()
-# tokens = tokenizer.decode(output)
-# print (tokens)
 
 fout = []
 for i in range(50):

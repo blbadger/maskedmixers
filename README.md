@@ -7,7 +7,9 @@ Code for the paper 'Masked Mixers for Language Generation and Retrieval', which 
 For a less formal version of this work written as a technical blog post, see [this page](https://blbadger.github.io/smaller-lms.html)
 
 ### Paper TL;DR:
+
 **Motivation:** Poor input representation accuracy in transformers, but much better accuracy in MLP-mixers adapted for causal language modeling (aka masked mixers)
+
 **Finding:** Masked mixers are approximately as efficient learners of language generation relative to transformers but are far superior for retrieval.
 
 ### Quickstart
@@ -25,11 +27,13 @@ Traceback (most recent call last):
 ImportError: /home/bbadger/experiments/maskedmixers/mixer-venv/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so: undefined symbol: ncclCommRegister
 ```
 
-If you do, simply install `torch==2.1.1` and then re-install (see further [this torch issue](https://github.com/pytorch/pytorch/issues/119932) for more information).
+If you get this error, simply pip install `torch==2.1.1` and then re-install your more recent torch version (see further [this torch issue](https://github.com/pytorch/pytorch/issues/119932) for more information).
 
 This repo expects CUDA runtime API 12.x and Python 3.10.12, although it is compatible with other minor versions of 3.10 and should be compatible with a few other major versions as well (this has not been tested). 
 
 If you are using a different Python version, it is recommended that you use a python environment manager (`pyenv` etc.) to install 3.10.12 before spinning up the venv and installing dependencies. If you currently have a different CUDA major version such as 11.x, it is recommended that you use build a docker container with CUDA 12.2 or 12.3 rather than attempt to upgrade your system CUDA version, as doing so has a tendency to break existing libraries that use CUDA in very obscure ways.
+
+To use the `retrieval_generation` code, install `llama.cpp` either from source or as a wheel along with `llama-cpp-python`.
 
 ### Use
 

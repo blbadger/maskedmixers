@@ -1,10 +1,3 @@
-import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
-
-import prettytable
-from prettytable import PrettyTable
 
 import torch
 import einops
@@ -18,8 +11,8 @@ import mlflow
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_dataset
 import sentencepiece
+from prettytable import PrettyTable
 from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
 
 
 def FeedForward(dim, expansion_factor=4):
@@ -89,7 +82,6 @@ class MixerBlock(nn.Module):
 		residual = x
 		x = self.patch_layernorm(x)
 		x = self.mobius_ff(x) + residual
-		# x = self.patch_ff(x) + residual
 		return x
 
 
@@ -124,23 +116,6 @@ class LanguageMixer(nn.Module):
 		loss = self.cel(shift_logits, shift_labels)
 		return loss, output
 
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
-tokenizer.pad_token = tokenizer.eos_token
-n_vocab = len(tokenizer)
-print (tokenizer.is_fast)
-
-tokenized_length = 512
-dim = 64
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = LanguageMixer(n_vocab, dim, 8).float().to(device)
-
-# one = torch.tensor([[[1, 4, 3]]]).to(device)
-# two = torch.tensor([[[1, 2, 3]]]).to(device)
-# print (model(one, labels=one))
-# print (model(two, labels=two))
-# print (model)
-
 def count_parameters(model):
 	table = PrettyTable(["Modules", "Parameters"])
 	total_params = 0
@@ -154,13 +129,6 @@ def count_parameters(model):
 	print(table)
 	print(f"Total Trainable Params: {total_params}")
 	return total_params
-
-count_parameters(model)
-
-# cached dataset
-train_text = load_dataset("roneneldan/TinyStories", split="train")
-valid_text = load_dataset("roneneldan/TinyStories", split="validation")
-
 
 def tile_inputs(input_ids, tile_overlap=100, tile_size=828):
 	text_length = len(input_ids[0])
@@ -266,8 +234,6 @@ def tokenize_input(train_text, test_text):
 
 	return train_data, test_data
 
-train_data, test_data = batch_tokenize_input(train_text, valid_text)
-train_data, test_data = debatch_input(train_data), debatch_input(test_data)
 
 def reformat_inputs(train_data, test_data):
 	# reformat inputs for transformer modelz`
@@ -275,12 +241,36 @@ def reformat_inputs(train_data, test_data):
 		train_data[i] = train_data[i].flatten()
 
 	for i, _ in enumerate(test_data):
-		test_data[i] = test_data[i].flatten()
+		test_data[i] = test_data[i].fl
+
+		
+# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
+tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
+tokenizer.pad_token = tokenizer.eos_token
+n_vocab = len(tokenizer)
+print (tokenizer.is_fast)
+
+tokenized_length = 512
+dim = 64
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = LanguageMixer(n_vocab, dim, 8).float().to(device)
+
+# one = torch.tensor([[[1, 4, 3]]]).to(device)
+# two = torch.tensor([[[1, 2, 3]]]).to(device)
+# print (model(one, labels=one))
+# print (model(two, labels=two))
+# print (model)
+
+count_parameters(model)
+
+# cached dataset
+train_text = load_dataset("roneneldan/TinyStories", split="train")
+valid_text = load_dataset("roneneldan/TinyStories", split="validation")
+
+train_data, test_data = batch_tokenize_input(train_text, valid_text)
+train_data, test_data = debatch_input(train_data), debatch_input(test_data)
+atten()
 	return train_data, test_data
-
-
-if isinstance(model, LlamaForCausalLM):
-	reformat_inputs(train_data, test_data)
 
 mlflow.end_run()
 print ('training begun')

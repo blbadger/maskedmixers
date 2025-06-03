@@ -1,21 +1,15 @@
 import os
-import prettytable
 from prettytable import PrettyTable
-
 import torch
+import torch.nn as nn
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
 from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
-import torch.nn as nn
 import mlflow
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_dataset
 import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -289,9 +283,6 @@ if __name__ == '__main__':
 	train_data, test_data = batch_tokenize_input(train_text, valid_text)
 	train_data, test_data = debatch_input(train_data), debatch_input(test_data)
 
-	if isinstance(model, LlamaForCausalLM):
-		reformat_inputs(train_data, test_data)
-
 	mlflow.end_run()
 	print ('training begun')
 
@@ -321,7 +312,7 @@ if __name__ == '__main__':
 
 
 	model.train()
-	trainer.train('/home/bbadger/Desktop/autoencoding_mixer_1024_n16_b32/checkpoint-60000') # '/home/bbadger/Desktop/tinystories_mixer_128_f_n8/checkpoint-748000'
+	trainer.train('/home/bbadger/Desktop/autoencoding_mixer_1024_n16_b32/checkpoint-60000')
 	for name, param in model.named_parameters():
 		print (name)
 

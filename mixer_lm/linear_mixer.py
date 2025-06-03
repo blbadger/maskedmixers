@@ -1,9 +1,4 @@
 import os
-
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-import prettytable
 from prettytable import PrettyTable
 import torch
 import einops
@@ -20,6 +15,7 @@ from tokenizers import ByteLevelBPETokenizer
 from safetensors.torch import load_model
 
 
+# linear feedforward with expansion
 def FeedForward(dim, expansion_factor=1):
 	inner_dim = int(dim * expansion_factor)
 	return nn.Sequential(
@@ -28,6 +24,7 @@ def FeedForward(dim, expansion_factor=1):
 		nn.Linear(inner_dim, dim)
 	)
 
+# nonlinear conv forward
 def ConvForward(dim, expansion_factor=1):
 	inner_dim = int(dim * expansion_factor)
 	return nn.Sequential(
@@ -64,18 +61,16 @@ class MixerBlock(nn.Module):
 
 	def __init__(self, dim, length, clm_mask=True, expand_conv=False):
 		super().__init__()
-		# self.patch_layernorm = nn.LayerNorm(dim)
-		# self.seq_layernorm = nn.LayerNorm(dim)
+
 		self.dim = dim
 		self.length = length
-		# self.patch_ff = FeedForward(dim)
+		self.patch_ff = FeedForward(dim)
 		if expand_conv:
 			self.conv = ConvForward(length)
 		else:
 			self.conv = nn.Conv1d(length, length, 1)
 		self.clm_mask = clm_mask
 		self.expand_conv = expand_conv
-		# self.softmax = nn.Softmax(dim=0)
 
 	def forward(self, x: torch.tensor):
 		if x.dim() > 3:
@@ -178,65 +173,6 @@ n_vocab = len(tokenizer)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 tokenized_length = 64
 
-# class MixerBlock(nn.Module):
-
-# 	def __init__(self, dim, length, clm_mask=True):
-# 		super().__init__()
-# 		self.conv = nn.Conv1d(length, length, 1)
-# 		self.clm_mask = clm_mask
-
-# 	def forward(self, x: torch.tensor):
-# 		if x.dim() > 3:
-# 			x = rearrange(x, 'b p t f -> (b p) t f')
-
-# 		masked_conv = torch.tril(rearrange(self.conv.weight, 'f d p -> p f d'))
-# 		self.conv.weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
-
-# 		residual = x
-# 		x = self.conv(x) + residual
-# 		return x
-
-
-# class LanguageMixer(nn.Module):
-
-# 	def __init__(self, n_vocab, dim, depth):
-# 		super().__init__()
-# 		self.wte = nn.Embedding(n_vocab, dim)
-# 		self.mixerblocks = nn.ModuleList(
-# 			[MixerBlock(
-# 				dim = dim,
-# 				length = tokenized_length,
-# 				clm_mask=True
-# 				)
-# 			for i in range(depth)]
-# 			).to(device)
-# 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
-# 		self.cel = nn.CrossEntropyLoss()
-
-# 	def forward(self, input_ids, labels=None):
-# 		x = input_ids
-# 		x = x.to(device)
-# 		x = self.wte(x)
-# 		for block in self.mixerblocks:
-# 			x = block(x)
-# 		output = self.lm_head(x)
-# 		labels = rearrange(labels, 'b p t -> b (p t)')
-# 		output = rearrange(output, 'b t e -> b e t')
-# 		shift_logits = output[..., :-1].contiguous()
-# 		shift_labels = labels[..., 1:].contiguous()
-# 		loss = self.cel(shift_logits, shift_labels)
-# 		return loss, output
-
-# # tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-# tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
-# tokenizer.pad_token = tokenizer.eos_token
-# n_vocab = len(tokenizer)
-# print (tokenizer.is_fast)
-
-# tokenized_length = 128
-# dim = 512
-# device = 'cuda' if torch.cuda.is_available() else 'cpu'
-# model = LanguageMixer(n_vocab, dim, 1).float().to(device)
 
 if __name__ == '__main__':
 

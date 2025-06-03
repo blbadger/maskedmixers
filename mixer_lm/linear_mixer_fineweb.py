@@ -1,25 +1,21 @@
-import prettytable
-from prettytable import PrettyTable
-
 import torch
 import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer, BitsAndBytesConfig
+from transformers import TextDataset, Trainer, TrainingArguments, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import datasets
 from datasets import load_dataset, load_from_disk
 import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
 from safetensors import safe_open
 from safetensors.torch import save_file
+from prettytable import PrettyTable
+
 from mixer_multiconv import MultiHeadedMixer
-import datasets
 
-
+# nonlinear (on activation) 1d conv layer
 def ConvForward(dim, expansion_factor=1):
 	inner_dim = int(dim * expansion_factor)
 	return nn.Sequential(
@@ -30,7 +26,7 @@ def ConvForward(dim, expansion_factor=1):
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length=512, expand_conv=False):
+	def __init__(self, dim, length=512, expand_conv=False, use_patch_ff=False):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
@@ -42,7 +38,7 @@ class MixerBlock(nn.Module):
 		else:
 			self.conv = nn.Conv1d(length, length, 1, padding='same')
 		self.expand_conv = expand_conv
-
+		self.use_patch_ff = use_patch_ff
 
 	def forward(self, x: torch.tensor):
 		if x.dim() > 3:
@@ -66,9 +62,10 @@ class MixerBlock(nn.Module):
 			masked_conv = torch.tril(rearrange(self.conv.weight, 'f d p -> p f d'))
 			self.conv.weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
 
-		#residual = x
+		residual = x
 		x = self.conv(x)
-		#x = self.patch_ff(x)
+		if self.use_patch_ff:
+			x = self.patch_ff(x)
 		return x
 
 class LanguageMixer(nn.Module):
@@ -167,4 +164,3 @@ trainer = transformers.Trainer(
 
 model.train()
 trainer.train()
-# trainer.train('/home/bbadger/Desktop/fineweb_mixer_512_n16_b64/checkpoint-188000')
