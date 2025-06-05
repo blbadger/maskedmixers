@@ -1,21 +1,12 @@
-import os
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer
 import torch.nn as nn
-import mlflow
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import AutoModel
-from safetensors.torch import load_model, save_model, load_file
 import json
 import numpy as np
 import random
-from datasets import Dataset
 from safetensors.torch import safe_open
 from tqdm import tqdm
 
@@ -97,7 +88,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None):
@@ -170,7 +161,6 @@ class TransformerBlock(nn.Module):
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
 		self.dim = dim
-		self.length = length
 		self.patch_ff = FeedForward(dim)
 
 	def forward(self, x: torch.tensor):
@@ -253,7 +243,7 @@ def batch_tokenize_input(train_text, batch_size=128, start=0, end=60000):
 	return train_data
 
 @torch.no_grad()
-def embed_input(input_tokens):
+def embed_input(input_tokens, gen_model):
 	embeddings = []
 	for i in range(0, len(input_tokens)):
 		if i % 100 == 0:
@@ -288,15 +278,15 @@ def generate_retrieval_dataset(query_embeddings, target_embeddings, n_context, m
 			inputs.append({'input_ids': input, 'labels': labels})
 	return inputs
 
-def in_memory_dataset():
+def in_memory_dataset(gen_model):
 	# for latency profiling against storage-based datasets
 	train_text, test_text = load_dataset("roneneldan/TinyStories", split="train"), load_dataset("roneneldan/TinyStories", split="train")
 
 	train_data = batch_tokenize_input(train_text, start=0, end=2000)
 	test_data = batch_tokenize_input(train_text, start=2000, end=4000)
 
-	target_train = embed_input(train_data)
-	target_test = embed_input(test_data)
+	target_train = embed_input(train_data, gen_model)
+	target_test = embed_input(test_data, gen_model)
 
 	query_text = [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_60k.json'))]
 	query_train_data = batch_tokenize_input(query_text, start=0, end=2000)
@@ -398,7 +388,6 @@ if second:
 		# target_test_embeddings = torch.cat((target_test_embeddings, f.get_tensor('target_test')))
 		query_train_embeddings = torch.cat((query_train_embeddings, f.get_tensor('query_train')))
 		# query_test_embeddings = torch.cat((query_test_embeddings, f.get_tensor('query_test')))
-
 
 n_context = 32
 train_dataset = RetrievalDataset(target_train_embeddings, query_train_embeddings, n_context=n_context, replace=False, pre_index=False)

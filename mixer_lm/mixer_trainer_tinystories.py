@@ -1,18 +1,13 @@
 import os
-import prettytable
-from prettytable import PrettyTable
-
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer
 import torch.nn as nn
 import mlflow
 from datasets import load_dataset
-import sentencepiece
 from safetensors import safe_open
+from prettytable import PrettyTable
 
 class ScheduledFeedForward(nn.Module):
 
@@ -34,7 +29,6 @@ class ScheduledFeedForward(nn.Module):
 		self.iteration += 1		
 		return x
 	
-
 
 def LinearFeedForward(dim, linear, expansion_factor=1):
 	inner_dim = int(dim * expansion_factor)
@@ -164,7 +158,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None):
@@ -192,7 +186,6 @@ tokenized_length = 512
 dim = 1024
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = LanguageMixer(n_vocab, dim, 8) 
-
 
 # causality check
 # one = torch.tensor([[[1, 4, 3]]]).to(device)

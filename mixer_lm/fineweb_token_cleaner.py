@@ -1,5 +1,5 @@
 import os
-from datasets import load_dataset, load_from_disk, Dataset
+from datasets import load_from_disk
 import argparse
 import shutil
 
@@ -7,10 +7,10 @@ parser = argparse.ArgumentParser(description='Arg parser')
 parser.add_argument('--path', type=str)
 
 def clean(example):
-    for col in list(example.keys()):
-    	if col not in ['input_ids', 'attention_mask']:
-    		del example[col]
-    return example
+	for col in list(example.keys()):
+		if col not in ['input_ids', 'attention_mask']:
+			del example[col]
+	return example
 
 if __name__ == '__main__':
 	args = parser.parse_args()

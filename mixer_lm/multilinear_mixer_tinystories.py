@@ -1,19 +1,11 @@
-
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer
 from datasets import load_dataset
-import sentencepiece
 from prettytable import PrettyTable
-from tokenizers import ByteLevelBPETokenizer
-
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -99,7 +91,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None):
@@ -243,8 +235,6 @@ def reformat_inputs(train_data, test_data):
 	for i, _ in enumerate(test_data):
 		test_data[i] = test_data[i].fl
 
-		
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
 tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
@@ -269,8 +259,6 @@ valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 
 train_data, test_data = batch_tokenize_input(train_text, valid_text)
 train_data, test_data = debatch_input(train_data), debatch_input(test_data)
-atten()
-	return train_data, test_data
 
 mlflow.end_run()
 print ('training begun')

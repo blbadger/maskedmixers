@@ -1,19 +1,12 @@
-import os
-import prettytable
-from prettytable import PrettyTable
-
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer
 import torch.nn as nn
 import mlflow
-
+from prettytable import PrettyTable
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
+
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -244,7 +237,7 @@ if __name__ == '__main__':
 	tokenized_length = 512
 	dim = 1024
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
-	model = LanguageMixer(n_vocab, dim, 8, length)
+	model = MultiHeadedMixer(n_vocab, dim, 8, tokenized_length)
 
 	# check causality
 	# one = torch.tensor([[[1, 2, 3]]]).to(device)

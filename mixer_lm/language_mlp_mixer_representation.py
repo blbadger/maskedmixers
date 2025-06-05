@@ -3,25 +3,15 @@ import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel, AutoTokenizer, LlamaModel, LlamaConfig, LlamaForCausalLM
+from transformers import AutoTokenizer, AutoTokenizer
 import torch
 import random
-import numpy as np
 from torch import nn
-from torch.nn import Conv2d
-from torch.utils.data import DataLoader, Dataset
-import torchvision
-import matplotlib.pyplot as plt
-import math, random, time
+import random
 from prettytable import PrettyTable
 from datasets import load_dataset
-
-import einops
-from functools import partial 
-from einops import rearrange, reduce
-from safetensors.torch import load_model, save_model, load_file
-
+from einops import rearrange
+from safetensors.torch import load_model
 
 def FeedForward(dim, expansion_factor=4):
     inner_dim = int(dim * expansion_factor)

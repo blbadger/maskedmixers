@@ -1,20 +1,8 @@
-import os
-import prettytable
-from prettytable import PrettyTable
-
 import torch
-import einops
 from einops import rearrange
-import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, LlamaConfig, LlamaForCausalLM
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer
 import torch.nn as nn
-import mlflow
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from rotary_embedding_torch import RotaryEmbedding
-
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -93,7 +81,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None):
@@ -139,8 +127,6 @@ def batch_tokenize_input(train_text, test_text, length=20000, batch_size=32):
 
 	return train_data, test_data
 
-train_data, test_data = batch_tokenize_input(train_text, valid_text)
-
 def reformat_inputs(train_data, test_data):
 	# reformat inputs for transformer modelz`
 	for i, _ in enumerate(train_data):
@@ -167,7 +153,7 @@ def train_model():
 			print (model.mixerblocks[0].conv[0].weight[10][:10])
 		print ('Average loss: ', total_loss / len(batch))
 
-def check_causality()
+def check_causality():
 	one = torch.tensor([[[5, 2, 3]]]).to(device)
 	two = torch.tensor([[[1, 2, 3]]]).to(device)
 	print (model(one, labels=one))
@@ -189,6 +175,8 @@ print (model)
 train_text = load_dataset("roneneldan/TinyStories", split="train")
 valid_text = load_dataset("roneneldan/TinyStories", split="validation")
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+
+train_data, test_data = batch_tokenize_input(train_text, valid_text)
 train_model()
 
 

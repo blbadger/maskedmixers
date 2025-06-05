@@ -1,22 +1,13 @@
-import os
 import torch
-import einops
 from einops import rearrange
 import transformers
 from transformers.modeling_outputs import CausalLMOutputWithPast
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
-import torch.nn as nn
+from transformers import AutoTokenizer
 import mlflow
-
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
 from transformers import LlamaConfig, LlamaForCausalLM, LlamaModel
-import prettytable
 from prettytable import PrettyTable
-import typing
-from typing import Optional, Union
+from typing import Optional
 from torch.nn import CrossEntropyLoss
 
 device = 'cuda' if torch.cuda.is_available else 'cpu'

@@ -1,20 +1,10 @@
-import prettytable
-from prettytable import PrettyTable
-
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer
 import torch.nn as nn
 import mlflow
-
-from datasets import load_dataset, load_from_disk
-import sentencepiece
-from transformers import LlamaConfig, LlamaForCausalLM
-from safetensors import safe_open
-from safetensors.torch import save_file
+from datasets import load_from_disk
 import datasets
 
 
@@ -25,7 +15,6 @@ def FeedForward(dim, expansion_factor=4):
 		nn.GELU(),
 		nn.Linear(inner_dim, dim)
 	)
-
 
 class MixerBlock(nn.Module):
 

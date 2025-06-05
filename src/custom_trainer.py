@@ -5,28 +5,16 @@ from transformers import AutoTokenizer
 from datasets import load_dataset
 from utilities.mixer_models import LanguageMixer
 from utilities.processors import batch_tokenize_input
+from safetensors.torch import save_file
+from dotenv import load_dotenv
+import os
 
-# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_4k")
-tokenizer.pad_token = tokenizer.eos_token
 
-n_vocab = len(tokenizer)
-tokenized_length = 512
-dim = 128
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = LanguageMixer(n_vocab, dim, 1).float().to(device)
-print (model)
-
-# cached dataset
-train_text = load_dataset("roneneldan/TinyStories", split="train")
-valid_text = load_dataset("roneneldan/TinyStories", split="validation")
-
-train_data, test_data = batch_tokenize_input(train_text, valid_text, tokenizer)
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-
-def train_model():
+def train_model(model, epochs=2):
+	"""
+	Custom trainer for validating model gradient flow and optimizers
+	"""
 	model.train()
-	epochs = 2
 	for epoch in range(epochs):
 		total_loss = 0
 		for step, batch in enumerate(train_data):
@@ -40,8 +28,32 @@ def train_model():
 			optimizer.step()
 			print (model.mixerblocks[0].conv[0].weight[10][:10])
 		print ('Average loss: ', total_loss / len(batch))
+	save_file(model, "path/to/model.safetensors")
+`	return
 
-train_model()
+
+if __name__ == '__main__'
+	load_dotenv()
+	tokenizer_path = os.getenv("TINYSTORIES_TOKENIZER_PATH")
+	dataset_path = os.getenv("TINYSTORIES_DATASET_PATH")
+
+	tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+	tokenizer.pad_token = tokenizer.eos_token
+
+	n_vocab = len(tokenizer)
+	tokenized_length = 512
+	dim = 128
+	device = 'cuda' if torch.cuda.is_available() else 'cpu'
+	model = LanguageMixer(n_vocab, dim, 1).float().to(device)
+	print (model)
+
+	# cached dataset
+	train_text = load_dataset(dataset_path, split="train")
+	valid_text = load_dataset(dataset_path, split="validation")
+
+	train_data, test_data = batch_tokenize_input(train_text, valid_text, tokenizer)
+	optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+	train_model(model)
 
 
 

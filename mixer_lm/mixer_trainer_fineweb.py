@@ -1,20 +1,14 @@
-import prettytable
 from prettytable import PrettyTable
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer
 import torch.nn as nn
 import mlflow
-
-from datasets import load_dataset, load_from_disk
-import sentencepiece
-from safetensors import safe_open
-from safetensors.torch import save_file
-from mixer_multiconv import MultiHeadedMixer
 import datasets
+from datasets import load_dataset, load_from_disk
+
+from mixer_multiconv import MultiHeadedMixer
 from mixer_autoencoder import AutoencodingMixer
 
 def FeedForward(dim, expansion_factor=4):
@@ -221,7 +215,7 @@ class LanguageMixer(nn.Module):
 		#self.up_proj1, self.up_proj2 = nn.Linear(dim, dim*2), nn.Linear(dim*2, dim*3)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None, **kwargs):

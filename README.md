@@ -57,9 +57,11 @@ $ torchrun --nnodes=2 --nproc_per_node=4 file_name.py
 
 ### For Experimental Replication
 
-Use the `mixer_lm` directory for replication of experiments.
+Use the `mixer_lm` directory for replication of experiments. The code is very research-oriented and is designed for experimentation rather than ease of use and robustness. You will need to replace the paths present with your own manually, although there are typically only a few such paths per file. These are also typically set-and-forget style paths, and should not need frequent modification once set. As it is common practice to name an experimental run's output (the trainer output path or inference tokens etc.) after the experiment itself for future use, path modification is inherently required in these files to some extent.
+
+### For Development
+
+A somewhat more user-friendly codebase than that in the `mixer_lm` directory is located in `src`. Use this to train, run, and build off models proposed in this work.
 
 **Note that the `src` directory is currenty under construction: use `mixer_lm` for now**
-
-A more user-friendly version is `src` directory to train, run, and evaluate mixers and other related models.
 

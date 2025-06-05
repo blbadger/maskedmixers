@@ -1,19 +1,13 @@
 import os
-import prettytable
 from prettytable import PrettyTable
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
+from transformers import LlamaForCausalLM
 from safetensors import safe_open
 
 def FeedForward(dim, expansion_factor=4):
@@ -23,7 +17,6 @@ def FeedForward(dim, expansion_factor=4):
 		nn.GELU(),
 		nn.Linear(inner_dim, dim)
 		)
-
 
 class ConcatBlock(nn.Module):
 
@@ -60,7 +53,7 @@ class Concater(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None):
@@ -89,7 +82,7 @@ n_vocab = len(tokenizer)
 tokenized_length = 3
 dim = 384
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = Concater(n_vocab, dim, 2`).to(device)
+model = Concater(n_vocab, dim, 2).to(device)
 
 one = torch.tensor([[[1, 2, 3]]]).to(device)
 two = torch.tensor([[[1, 5, 3]]]).to(device)

@@ -1,15 +1,10 @@
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer
 from datasets import load_dataset, load_from_disk
-import sentencepiece
-from safetensors import safe_open
-from safetensors.torch import save_file
 import datasets
 from prettytable import PrettyTable
 
@@ -128,7 +123,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 		self.n_passes = n_passes
 

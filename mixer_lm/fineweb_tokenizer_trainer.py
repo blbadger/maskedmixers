@@ -1,11 +1,7 @@
 from datasets import load_dataset
-from pathlib import Path
-from tokenizers import ByteLevelBPETokenizer
-import os
 from transformers import AutoTokenizer
-import time
 import torch
-from transformers import AutoTokenizer, BatchEncoding
+from transformers import AutoTokenizer
 
 class TextDataset(torch.utils.data.Dataset):
     """

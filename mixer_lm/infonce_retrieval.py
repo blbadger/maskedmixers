@@ -1,30 +1,16 @@
-import os
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import AutoModel, LlamaConfig, LlamaForCausalLM, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import LlamaConfig, LlamaForCausalLM, AutoTokenizer
 import torch.nn as nn
 import torch.nn.functional as F
-import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from datasets import load_dataset
-import sentencepiece
-
-from safetensors.torch import load_model, save_model, load_file, safe_open
-import json
-import numpy as np
+from transformers import AutoTokenizer
+from safetensors.torch import load_model, safe_open
 import random
-from datasets import Dataset, load_from_disk, load_dataset
-from tqdm import tqdm
-from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
 import threading
-from accelerate import init_empty_weights
-from accelerate.utils import BnbQuantizationConfig, load_and_quantize_model
 
 from mixer_autoencoder import AutoencodingMixer
-from transformer_autoencoder import AbbreviatedModel, AutoencodingTransformer
+from transformer_autoencoder_tinystories import AbbreviatedModel, AutoencodingTransformer
 
 
 def FeedForward(dim, expansion_factor=4):
@@ -291,7 +277,7 @@ if __name__ == '__main__':
 	n_context = tokenized_length
 
 	use_mixer = False
-	autoencoder = True
+	use_autoencoder = True
 	if use_mixer:
 		#initialize retrieval model
 		if use_autoencoder:

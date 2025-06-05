@@ -1,19 +1,14 @@
-import prettytable
-from prettytable import PrettyTable
 
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer
 import torch.nn as nn
 import mlflow
 
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import LlamaConfig, LlamaForCausalLM
+from transformers import LlamaForCausalLM
+from prettytable import PrettyTable
 
 
 def FeedForward(dim, expansion_factor=4):
@@ -25,6 +20,7 @@ def FeedForward(dim, expansion_factor=4):
 	)
 
 def ConvForward(dim):
+	expansion_factor=1
 	inner_dim = int(dim * expansion_factor)
 	return nn.Sequential(
 		nn.Conv1d(dim, inner_dim, 1),
@@ -94,7 +90,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 		self.positions = torch.arange(-tokenized_length//2, tokenized_length//2, 1).to(device)
 		

@@ -5,9 +5,7 @@ from torch import Tensor
 from transformers import AutoTokenizer, AutoModel, BitsAndBytesConfig
 import json
 import random
-from accelerate import infer_auto_device_map
-from safetensors.torch import load_model, safe_open
-from transformers import LlamaModel, LlamaConfig, LlamaForCausalLM
+from safetensors.torch import safe_open
 from tqdm import tqdm
 from safetensors.torch import save_file
 

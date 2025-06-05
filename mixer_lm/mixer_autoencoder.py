@@ -2,14 +2,11 @@ import os
 from prettytable import PrettyTable
 import torch
 import torch.nn as nn
-import einops
 from einops import rearrange
 import transformers
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer
 from datasets import load_dataset
-import sentencepiece
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -261,14 +258,10 @@ def reformat_inputs(train_data, test_data):
 
 
 if __name__ == '__main__':
-	# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 	tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
 	tokenizer.pad_token = tokenizer.eos_token
 	n_vocab = len(tokenizer)
 	print (tokenizer.is_fast)
-
-
-	count_parameters(model)
 
 	# cached dataset
 	train_text = load_dataset("roneneldan/TinyStories", split="train")

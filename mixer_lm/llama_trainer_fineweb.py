@@ -1,23 +1,18 @@
-import os
 import torch
-import einops
 from einops import rearrange
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
-import torch.nn as nn
+from transformers import AutoTokenizer
 import mlflow
 
 from datasets import load_dataset, load_from_disk
-import sentencepiece
+import transformers
 from transformers import LlamaConfig, LlamaForCausalLM
-import prettytable
 from prettytable import PrettyTable
 from safetensors.torch import save_file
 from safetensors import safe_open
 import datasets
 
-from transformer_autoencoder import AbbreviatedModel, AutoencodingTransformer
+from transformer_autoencoder_tinystories import AbbreviatedModel, AutoencodingTransformer
 
 device = 'cuda' if torch.cuda.is_available else 'cpu'
 
