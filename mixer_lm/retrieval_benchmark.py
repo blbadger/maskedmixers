@@ -1,20 +1,17 @@
 import torch
-import torch.nn.functional as F
-import datasets
-from torch import Tensor
-from transformers import AutoTokenizer, AutoModel, BitsAndBytesConfig
-import json
-import random
-from accelerate import infer_auto_device_map
-from safetensors.torch import load_model
-from transformers import LlamaModel, LlamaConfig, LlamaForCausalLM
 import torch.nn as nn
 import torch.nn.functional as F
-from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
+import datasets
+from transformers import AutoTokenizer
+import json
+import random
+from safetensors.torch import load_model
+from transformers import LlamaConfig, LlamaForCausalLM
+
 import threading
 from einops import rearrange
 from tqdm import tqdm
-from safetensors.torch import load_model, save_model, load_file, safe_open, save_file
+from safetensors.torch import load_model, safe_open, save_file
 
 from mixer_autoencoder import AutoencodingMixer
 

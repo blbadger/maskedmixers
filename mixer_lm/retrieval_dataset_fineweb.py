@@ -1,23 +1,13 @@
-import os
 import torch
-import einops
 from einops import rearrange
-import transformers
-from transformers import PreTrainedTokenizerFast
-from transformers import TextDataset, Trainer, TrainingArguments
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
-import mlflow
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import AutoModel, LlamaConfig, LlamaForCausalLM
-from safetensors.torch import load_model, save_model, load_file
+from transformers import AutoTokenizer
+
+from transformers import LlamaConfig, LlamaForCausalLM
+from safetensors.torch import load_model
 import json
-import numpy as np
 import random
-from datasets import Dataset, load_from_disk
+from datasets import load_from_disk
 from safetensors.torch import save_file
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -100,7 +90,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None):
@@ -285,8 +275,8 @@ class RetrievalDataset(torch.utils.data.Dataset):
 		self.target_embeddings = target_embeddings
 		self.query_embeddings = query_embeddings
 
-	def __getitem__(self, idx):
-		input = torch.zeros((n_context, query_embeddings[0].shape[1]))
+	def __getitem__(self, idx, n_context=32):
+		input = torch.zeros((n_context, self.query_embeddings[0].shape[1]))
 		input[0] = self.query_embeddings[idx]
 		exclusive_target = self.target_embeddings[:idx] + self.target_embeddings[idx+1:]
 		random_insert = random.sample(exclusive_target, k=n_context-1)

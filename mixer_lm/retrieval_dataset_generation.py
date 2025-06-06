@@ -1,21 +1,11 @@
-import os
 import torch
-import einops
 import json
-import numpy as np
 import random
 from einops import rearrange
-import transformers
 from transformers import AutoTokenizer
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 import torch.nn as nn
-import mlflow
 from datasets import load_dataset
-import sentencepiece
-from tokenizers import ByteLevelBPETokenizer
-from transformers import AutoModel
-from safetensors.torch import load_model, save_model, load_file
-from datasets import Dataset
+from safetensors.torch import load_model
 from safetensors.torch import save_file
 from transformers import LlamaConfig, LlamaForCausalLM
 from linear_mixer import LanguageMixer, LinearMixer
@@ -98,7 +88,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None):
@@ -234,7 +224,6 @@ query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/h
 # query_text += [i['choices'][0]['message']['content'] for i in json.load(open('/home/bbadger/Desktop/train_output_500_550k.json'))]
 
 
-
 def generate_retrieval_dataset(query_embeddings, target_embeddings, n_context, multiples=10):
 	inputs = []
 	for m in range(multiples):
@@ -259,19 +248,20 @@ def generate_retrieval_dataset(query_embeddings, target_embeddings, n_context, m
 
 class RetrievalDataset(torch.utils.data.Dataset):
 
-	def __init__(self, target_embeddings, query_embeddings):
+	def __init__(self, target_embeddings, query_embeddings, n_context=32):
 		self.target_embeddings = target_embeddings
 		self.query_embeddings = query_embeddings
+		self.n_context = n_context
 
 	def __getitem__(self, idx):
-		input = torch.zeros((n_context, query_embeddings[0].shape[1]))
+		input = torch.zeros((self.n_context, self.query_embeddings[0].shape[1]))
 		input[0] = self.query_embeddings[idx]
 		exclusive_target = self.target_embeddings[:idx] + self.target_embeddings[idx+1:]
-		random_insert = random.sample(exclusive_target, k=n_context-1)
+		random_insert = random.sample(exclusive_target, k=self.n_context-1)
 		random_insert = torch.stack(random_insert, dim=0).reshape(input[1:].shape)
 		input[1:] = random_insert
 
-		target_index = random.randint(1, n_context-1) # random index to put target embedding
+		target_index = random.randint(1, self.n_context-1) # random index to put target embedding
 		matching_target = self.target_embeddings[idx] # target the query matches
 		input[target_index] = matching_target
 		labels = torch.tensor(target_index-1, dtype=torch.long) # one-element label for cross-entropy loss

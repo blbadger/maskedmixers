@@ -1,5 +1,4 @@
-import train_retrieval
-from train_retrieval import RetrievalMixer, RetrievalDataset
+from mixer_retrieval_tinystories import RetrievalMixer, RetrievalDataset
 from safetensors import safe_open
 import torch
 from safetensors.torch import load_model

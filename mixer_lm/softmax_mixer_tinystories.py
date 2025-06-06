@@ -1,14 +1,11 @@
 import torch
-import einops
 from einops import rearrange
 import transformers
 from transformers import AutoTokenizer
-from transformers import TextDataset, Trainer, TrainingArguments, AutoModelWithLMHead, DataCollatorForLanguageModeling
 from prettytable import PrettyTable
 import torch.nn as nn
 import mlflow
 from datasets import load_dataset
-import sentencepiece
 from transformers import LlamaConfig, LlamaForCausalLM
 
 
@@ -92,7 +89,7 @@ class LanguageMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
-			 self.wte.weight = self.lm_head.weight
+			self.wte.weight = self.lm_head.weight
 		self.cel = nn.CrossEntropyLoss()
 
 	def forward(self, input_ids, labels=None):

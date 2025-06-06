@@ -1,22 +1,13 @@
 import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel, AutoTokenizer
+from transformers import AutoTokenizer, AutoTokenizer
 from transformers import LlamaModel, LlamaConfig, LlamaForCausalLM, GPT2Config, GPT2LMHeadModel
 import torch
 import random
-import numpy as np
 from torch import nn
-from torch.nn import Conv2d
-from torch.utils.data import DataLoader, Dataset
-import matplotlib.pyplot as plt
-from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
-import math, random, time
+import random
 from prettytable import PrettyTable
 from datasets import load_dataset
-
-import einops
-from functools import partial 
-from einops import rearrange, reduce
-from safetensors.torch import load_model, save_model, load_file
+from safetensors.torch import load_model
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print (device)

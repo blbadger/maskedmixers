@@ -1,10 +1,6 @@
-import os
 import torch
-from transformers import PreTrainedTokenizerFast
 from transformers import AutoTokenizer
-import torch.nn as nn
-from datasets import load_dataset, load_from_disk, Dataset
-import sentencepiece
+from datasets import load_from_disk
 import json
 from safetensors.torch import save_file
 

@@ -7,6 +7,7 @@ import torch.nn as nn
 import mlflow
 from datasets import load_dataset
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -112,21 +113,6 @@ class LanguageMixer(nn.Module):
 		loss = self.cel(shift_logits, shift_labels)
 		return loss, output
 
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
-tokenizer.pad_token = tokenizer.eos_token
-n_vocab = len(tokenizer)
-print (tokenizer.is_fast)
-
-tokenized_length = 512
-dim = 1024
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = LanguageMixer(n_vocab, dim, 8).to(device)
-
-#one = torch.tensor([[[1, 2, 3]]]).to(device)
-#two = torch.tensor([[[1, 2, 3]]]).to(device)
-#print (model(one, labels=one))
-#print (model(two, labels=two))
-#print (model)
 
 def count_parameters(model):
 	table = PrettyTable(["Modules", "Parameters"])
@@ -141,13 +127,6 @@ def count_parameters(model):
 	print(table)
 	print(f"Total Trainable Params: {total_params}")
 	return total_params
-
-count_parameters(model)
-
-# cached dataset
-train_text = load_dataset("roneneldan/TinyStories", split="train")
-valid_text = load_dataset("roneneldan/TinyStories", split="validation")
-
 
 def tile_inputs(input_ids, tile_overlap=100, tile_size=828):
 	text_length = len(input_ids[0])
@@ -252,9 +231,6 @@ def tokenize_input(train_text, test_text):
 
 	return train_data, test_data
 
-train_data, test_data = batch_tokenize_input(train_text, valid_text)
-train_data, test_data = debatch_input(train_data), debatch_input(test_data)
-
 def reformat_inputs(train_data, test_data):
 	# reformat inputs for transformer modelz`
 	for i, _ in enumerate(train_data):
@@ -264,36 +240,61 @@ def reformat_inputs(train_data, test_data):
 		test_data[i] = test_data[i].flatten()
 	return train_data, test_data
 
-mlflow.end_run()
-print ('training begun')
+if __name__ == '__main__':
+	tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
+	tokenizer.pad_token = tokenizer.eos_token
+	n_vocab = len(tokenizer)
+	print (tokenizer.is_fast)
 
-training_arguments = transformers.TrainingArguments(
-	num_train_epochs=2.9,
-	per_device_train_batch_size=32,
-	per_device_eval_batch_size=32,
-	warmup_steps=500,
-	eval_steps=4000,
-	save_steps=4000,
-	learning_rate=5e-4,
-	fp16=True,
-	evaluation_strategy='steps',
-	output_dir='~/Desktop/tinystories_mixer_1024_n8_b32_c1_h2_2soft',
-	optim='adamw_torch',
-	overwrite_output_dir=True,
-	save_safetensors=True
-)
+	tokenized_length = 512
+	dim = 1024
+	model = LanguageMixer(n_vocab, dim, 8).to(device)
 
-trainer = transformers.Trainer(
-	model=model,
-	train_dataset=train_data,
-	eval_dataset=test_data,
-	args=training_arguments,
-	data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
-)
+	count_parameters(model)
+
+	# cached dataset
+	train_text = load_dataset("roneneldan/TinyStories", split="train")
+	valid_text = load_dataset("roneneldan/TinyStories", split="validation")
+
+	#one = torch.tensor([[[1, 2, 3]]]).to(device)
+	#two = torch.tensor([[[1, 2, 3]]]).to(device)
+	#print (model(one, labels=one))
+	#print (model(two, labels=two))
+	#print (model)
+
+	train_data, test_data = batch_tokenize_input(train_text, valid_text)
+	train_data, test_data = debatch_input(train_data), debatch_input(test_data)
+
+	mlflow.end_run()
+	print ('training begun')
+
+	training_arguments = transformers.TrainingArguments(
+		num_train_epochs=2.9,
+		per_device_train_batch_size=32,
+		per_device_eval_batch_size=32,
+		warmup_steps=500,
+		eval_steps=4000,
+		save_steps=4000,
+		learning_rate=5e-4,
+		fp16=True,
+		evaluation_strategy='steps',
+		output_dir='~/Desktop/tinystories_mixer_1024_n8_b32_c1_h2_2soft',
+		optim='adamw_torch',
+		overwrite_output_dir=True,
+		save_safetensors=True
+	)
+
+	trainer = transformers.Trainer(
+		model=model,
+		train_dataset=train_data,
+		eval_dataset=test_data,
+		args=training_arguments,
+		data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
+	)
 
 
-model.train()
-trainer.train()
-for name, param in model.named_parameters():
-	print (name)
+	model.train()
+	trainer.train()
+	for name, param in model.named_parameters():
+		print (name)
 

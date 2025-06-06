@@ -1,9 +1,5 @@
 from datasets import load_dataset
-from pathlib import Path
-from tokenizers import ByteLevelBPETokenizer
-import os
-from transformers import AutoTokenizer, BatchEncoding
-import time
+from transformers import AutoTokenizer
 import torch
 
 file_path = "/home/bbadger/Desktop/TinyStories-train.txt"
