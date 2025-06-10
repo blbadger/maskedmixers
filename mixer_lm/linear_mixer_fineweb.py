@@ -115,7 +115,7 @@ n_vocab = len(tokenizer)
 print ('Vocab size: ', n_vocab)
 
 tokenized_length = 128
-dim = 10240
+dim = 16000
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = LanguageMixer(n_vocab, dim, 1).float()
 
@@ -139,7 +139,7 @@ training_arguments = transformers.TrainingArguments(
 	save_steps=4000,
 	learning_rate=1e-4,
 	fp16=True,
-	evaluation_strategy='steps',
+	eval_strategy='steps',
 	output_dir='~/Desktop/fineweb_mixer_lin1_10240_16k_c128',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
@@ -148,7 +148,7 @@ training_arguments = transformers.TrainingArguments(
 )
 
 trainer = transformers.Trainer(
-	model=model,
+	model=model.to(device),
 	train_dataset=train_dataset,
 	eval_dataset=test_dataset,
 	args=training_arguments,

@@ -206,7 +206,7 @@ def infoNCEloss(output, matching_index=None, embedding_index=-2):
 
 class RetrievalDataset(torch.utils.data.Dataset):
 
-	def __init__(self, text_tokens, summary_tokens, batch_size=32, replace=False, right_padded=False):
+	def __init__(self, text_tokens, summary_tokens, batch_size=128, replace=False, right_padded=False):
 		self.summary_tokens = summary_tokens
 		self.text_tokens = text_tokens
 		self.context_length = len(summary_tokens[0])
@@ -272,12 +272,12 @@ if __name__ == '__main__':
 
 	tokenized_length = 512
 	dim = 512
-	n_layers = 8
+	n_layers = 16
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 	n_context = tokenized_length
 
-	use_mixer = False
-	use_autoencoder = True
+	use_mixer = True
+	use_autoencoder = False
 	if use_mixer:
 		#initialize retrieval model
 		if use_autoencoder:
@@ -301,7 +301,7 @@ if __name__ == '__main__':
 		# Initializing a LLaMA model
 		configuration = LlamaConfig(**llama_config_kwargs)
 
-		if autoencoder:
+		if use_autoencoder:
 			encoder_model = AbbreviatedModel(LlamaForCausalLM(configuration), tokenized_length=tokenized_length)
 			decoder_model = AbbreviatedModel(LlamaForCausalLM(configuration), tokenized_length=tokenized_length)
 			model = AutoencodingTransformer(vocab_size, dim, encoder_model, decoder_model, tokenized_length=tokenized_length)
@@ -338,7 +338,7 @@ if __name__ == '__main__':
 		save_steps=10000,
 		learning_rate=1e-4,
 		fp16=True,
-		evaluation_strategy='steps',
+		eval_strategy='steps',
 		output_dir='~/Desktop/contrastive_finemath_autoencoding_mixer_500pre_400k_1024_n8_b32',
 		optim='adamw_torch',
 		overwrite_output_dir=True,
