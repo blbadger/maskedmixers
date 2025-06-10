@@ -28,6 +28,7 @@ MANIFEST
 
 # virtual environments
 mixer-venv/
+new-venv/
 mixer_lm/mlruns
 */mlruns
 
