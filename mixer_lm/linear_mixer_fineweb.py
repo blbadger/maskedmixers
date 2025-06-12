@@ -118,7 +118,8 @@ tokenized_length = 128
 dim = 16000
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = LanguageMixer(n_vocab, dim, 1).float()
-
+print (model)
+load_model(model, '/home/bbadger/Desktop/linear_mixer_4096.safetensors')
 train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c128-16k-packed-debatched"
 test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test-c128-16k-packed-debatched"
 
@@ -134,17 +135,18 @@ training_arguments = transformers.TrainingArguments(
 	num_train_epochs=2,
 	per_device_train_batch_size=128,
 	per_device_eval_batch_size=128,
+	gradient_accumulation_steps=8,
 	warmup_steps=500,
 	eval_steps=4000,
 	save_steps=4000,
 	learning_rate=1e-4,
 	fp16=True,
 	eval_strategy='steps',
-	output_dir='~/Desktop/fineweb_mixer_lin1_10240_16k_c128',
+	output_dir='~/Desktop/fineweb_mixer_lin1_1600_16k_c128',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	save_safetensors=True,
-	max_steps=200000
+	max_steps=20000
 )
 
 trainer = transformers.Trainer(

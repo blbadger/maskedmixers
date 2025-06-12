@@ -1,9 +1,15 @@
 import torch
 from einops import rearrange
 import torch.nn as nn
-from transformers import AutoTokenizer
+import transformers
+from transformers import AutoTokenizer, PreTrainedTokenizerFast
 from datasets import load_dataset
 from safetensors.torch import load_model
+import warnings
+from tqdm import tqdm
+
+warnings.simplefilter(action='ignore', category=FutureWarning) # for FSDP shard saving
+warnings.simplefilter(action='ignore', category=UserWarning)
 
 # linear feedforward with expansion
 def FeedForward(dim, expansion_factor=1):
@@ -146,7 +152,7 @@ class LinearMixer(nn.Module):
 		for block in self.mixerblocks:
 			x = block(x)
 		
-		if labels:
+		if labels is not None:
 			output = self.lm_head(x)
 			labels = rearrange(labels, 'b p t -> b (p t)')
 			output = rearrange(output, 'b t e -> b e t')
@@ -157,19 +163,20 @@ class LinearMixer(nn.Module):
 		else:
 			return x
 
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tiny_token_8k")
-tokenizer.pad_token = tokenizer.eos_token
-n_vocab = len(tokenizer)
+tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/Desktop/tiny_token_16k/tokenizer.json")
+#tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_tinystories_16k")
+#tokenizer.pad_token = tokenizer.eos_token
+tokenizer.pad_token_id = 2
+print (tokenizer.eos_token)
+n_vocab = len(tokenizer)# fails to properly read tokeinizer size
+print (f"N vocab {n_vocab}")
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-tokenized_length = 64
-
+tokenized_length = 128
 
 if __name__ == '__main__':
-
-	dim = 4096
-	model = LanguageMixer(n_vocab, dim, 1).float().to(device)
-	load_model(model, '/home/bbadger/Desktop/linear_mixer_4096.safetensors')
-	print ('Model loaded')
+	dim = 16000
+	model = LinearMixer(n_vocab, dim, 1).float()
+	print (model)
 
 	# cached dataset
 	train_text = load_dataset("roneneldan/TinyStories", split="train")
@@ -184,11 +191,11 @@ if __name__ == '__main__':
 		return output
 
 
-	def batch_tokenize_input(train_text, test_text, length=20000, batch_size=16384):
+	def batch_tokenize_input(train_text, test_text, length=2000000, batch_size=1024):
 		train_data, test_data = [], []
-		max_length = 512
+		max_length = 128
 
-		for i in range(0, length, batch_size):
+		for i in tqdm(range(0, length, batch_size)):
 			input_ids = tokenizer.batch_encode_plus(
 				train_text[i:i+batch_size]['text'],
 				add_special_tokens=False,
@@ -216,7 +223,35 @@ if __name__ == '__main__':
 		return train_data, test_data
 
 	train_data, test_data = batch_tokenize_input(train_text, valid_text)
-	# train_data, test_data = debatch_input(train_data), debatch_input(test_data)
+	train_data, test_data = debatch_input(train_data), debatch_input(test_data)
+
+	print (train_data[0])
+	training_arguments = transformers.TrainingArguments(
+		num_train_epochs=5,
+		per_device_train_batch_size=128,
+		per_device_eval_batch_size=128,
+		warmup_steps=500,
+		eval_steps=4000,
+		save_steps=4000,
+		learning_rate=5e-4,
+		fp16=True,
+		eval_strategy='steps',
+		output_dir='~/Desktop/tinystories_linearmixer_16k_c128',
+		optim='adamw_torch',
+		overwrite_output_dir=True,
+		save_safetensors=True
+	)
+
+	trainer = transformers.Trainer(
+		model=model.to(device),
+		train_dataset=train_data,
+		eval_dataset=test_data,
+		args=training_arguments,
+		data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
+	)
+
+	model.train()
+	trainer.train() 
 
 	def train_solver(model, train_data, batch):
 		train_batch = train_data[0]
@@ -226,8 +261,8 @@ if __name__ == '__main__':
 		minimal_params = torch.pinv(model.grad()) @ torch.zeros(train_batch.shape)
 		return minimal_params
 
-	train_solver(model, train_data)
-	print (list(model.named_parameters()))
+	#train_solver(model, train_data)
+	#print (list(model.named_parameters()))
 
 
 
