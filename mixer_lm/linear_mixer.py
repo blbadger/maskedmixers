@@ -270,6 +270,18 @@ if __name__ == '__main__':
 		print (f'minimal lm found in {time.time() - start_time} seconds')
 		return minimal_params
 
+	def normal_solve(model, train_data):
+		train_batch = torch.stack(train_data[0:128], dim=0)
+		train_batch = train_batch.to('cuda') 
+		loss, output = model(train_batch, labels=train_batch) 
+		print (f"Starting loss: {loss.item()}")
+		# model.lm_head.weight = torch.inverse(model.lm_head.activations.T @ model.lm_head.activations) @ model.lm_head.activations.T
+		# model.mixerblocks[0].conv.weight = torch.inverse() @ model.conv_activations.T
+		model.wte.weight = torch.inverse(train_batch.T @ train_batch) @ train_batch.T
+		loss, output = model(train_batch, labels=train_batch) 
+		print (f"Ending loss: {loss.item()}")
+		return minimal_params
+
 	train_solver(model, train_data)
 	#print (list(model.named_parameters()))
 
