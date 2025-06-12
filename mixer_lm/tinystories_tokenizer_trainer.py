@@ -3,7 +3,8 @@ from transformers import AutoTokenizer
 import torch
 
 file_path = "/home/bbadger/Desktop/TinyStories-train.txt"
-dataset = load_dataset("roneneldan/TinyStories")
+#dataset = load_dataset("roneneldan/TinyStories")
+dataset = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT")
 old_tokenizer = AutoTokenizer.from_pretrained("openlm-research/open_llama_3b")
 
 class TextDataset(torch.utils.data.Dataset):

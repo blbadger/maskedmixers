@@ -2,12 +2,13 @@ import os
 import torch
 from einops import rearrange
 import transformers
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerFast
 import torch.nn as nn
 import mlflow
 from datasets import load_dataset
 from safetensors import safe_open
 from prettytable import PrettyTable
+from tqdm import tqdm
 
 class ScheduledFeedForward(nn.Module):
 
@@ -177,9 +178,12 @@ class LanguageMixer(nn.Module):
 		return loss, output
 
 # tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
-tokenizer.pad_token = tokenizer.eos_token
+tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/Desktop/tiny_token_16k/tokenizer.json")
+tokenizer.pad_token_id=2
+#tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/experiments/tiny_token_4k")
+#tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
+print (n_vocab)
 print (tokenizer.is_fast)
 
 tokenized_length = 512
@@ -247,8 +251,7 @@ def batch_tokenize_input(train_text, test_text, length=2000000, batch_size=1024)
 	train_data, test_data = [], []
 	max_length = 512
 
-	for i in range(0, length, batch_size):
-		
+	for i in tqdm(range(0, length, batch_size)):		
 		input_ids = tokenizer.batch_encode_plus(
 			train_text[i:i+batch_size]['text'],
 			add_special_tokens=False,
@@ -352,7 +355,7 @@ training_arguments = transformers.TrainingArguments(
 	save_steps=4000,
 	learning_rate=5e-4,
 	fp16=True,
-	evaluation_strategy='steps',
+	eval_strategy='steps',
 	output_dir='~/Desktop/Tinystories_mixer_1024_n8_b32_paddingright',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
