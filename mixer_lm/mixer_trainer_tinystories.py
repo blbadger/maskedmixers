@@ -363,7 +363,7 @@ training_arguments = transformers.TrainingArguments(
 )
 
 trainer = transformers.Trainer(
-	model=model,
+	model=model.to(device),
 	train_dataset=train_data,
 	eval_dataset=test_data,
 	args=training_arguments,

@@ -7,7 +7,7 @@ from datasets import load_dataset
 from safetensors.torch import load_model
 import warnings
 from tqdm import tqdm
-
+import time
 warnings.simplefilter(action='ignore', category=FutureWarning) # for FSDP shard saving
 warnings.simplefilter(action='ignore', category=UserWarning)
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
 		return output
 
 
-	def batch_tokenize_input(train_text, test_text, length=2000000, batch_size=1024):
+	def batch_tokenize_input(train_text, test_text, length=20000, batch_size=1024):
 		train_data, test_data = [], []
 		max_length = 128
 
@@ -225,7 +225,6 @@ if __name__ == '__main__':
 	train_data, test_data = batch_tokenize_input(train_text, valid_text)
 	train_data, test_data = debatch_input(train_data), debatch_input(test_data)
 
-	print (train_data[0])
 	training_arguments = transformers.TrainingArguments(
 		num_train_epochs=5,
 		per_device_train_batch_size=128,
@@ -251,17 +250,27 @@ if __name__ == '__main__':
 	)
 
 	model.train()
-	trainer.train() 
-
-	def train_solver(model, train_data, batch):
-		train_batch = train_data[0]
-		train_batch = batch.to(device) 
-		loss, output = model(batch) 
+	#trainer.train() 
+	print (model.mixerblocks[0])
+	def train_solver(model, train_data):
+		train_batch = torch.stack(train_data[0:128], dim=0)
+		print (train_batch.shape)
+		train_batch = train_batch.to('cuda') 
+		loss, output = model(train_batch, labels=train_batch) 
+		print (f"Starting loss: {loss.item()}")
 		loss.backward()
-		minimal_params = torch.pinv(model.grad()) @ torch.zeros(train_batch.shape)
+		start_time = time.time()	
+		minimal_wte = torch.pinverse(model.wte.weight.grad) @ torch.zeros(model.wte.weight.shape).to('cuda')
+		print (f'minimal wte found in {time.time() - start_time} seconds')
+		start_time = time.time()
+		minimal_conv = torch.pinverse(model.mixerblocks[0].conv.weight.grad) @ torch.zeros(model.mixerblocks[0].conv.weight.shape).to('cuda')
+		print (f'minimal conv found ion {time.time() - start_time} seconds')
+		start_time = time.time()
+		minimal_lm = torch.pinverse(model.lm_head.weight.grad) @ torch.zeros(model.lm_head.weight.shape).to('cuda')
+		print (f'minimal lm found in {time.time() - start_time} seconds')
 		return minimal_params
 
-	#train_solver(model, train_data)
+	train_solver(model, train_data)
 	#print (list(model.named_parameters()))
 
 
