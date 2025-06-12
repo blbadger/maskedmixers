@@ -50,7 +50,8 @@ class LinearMixer(nn.Module):
             for i in range(depth)]
             ).to(device)
         self.lm_head = nn.Linear(dim, n_vocab, bias=False)
-        self.cel = nn.CrossEntropyLoss(reduction='none')
+        self.cel = nn.CrossEntropyLoss()
+        self.mse = nn.MSELoss()
 
     def forward(self, input_ids, labels=None):
         x = input_ids
@@ -65,7 +66,11 @@ class LinearMixer(nn.Module):
             output = rearrange(output, 'b t e -> b e t')
             shift_logits = output[..., :-1].contiguous()
             shift_labels = labels[..., 1:].contiguous()
-            loss = self.cel(shift_logits, shift_labels)
+            #loss = self.cel(shift_logits, shift_labels)
+            one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2)
+            print (one_hots.shape)
+            converted_labels = torch.tensor(one_hots, requires_grad=False, dtype=torch.float)
+            loss = self.mse(shift_logits, converted_labels)
             return loss, output
         else:
             return x
@@ -133,6 +138,7 @@ if __name__ == '__main__':
     train_data, test_data = debatch_input(train_data), debatch_input(test_data)
 
     model.train()
+    model = model.to('cuda')
     #trainer.train() 
     print (model.mixerblocks[0])
     def train_solver(model, train_data):
@@ -168,16 +174,20 @@ if __name__ == '__main__':
         return minimal_params
 
     def newton_iteration(model, train_data):
-        train_batch = torch.stack(train_data[0:128], dim=0)
+        train_batch = torch.stack(train_data[0:32], dim=0)
         train_batch = train_batch.to('cuda') 
         loss, output = model(train_batch, labels=train_batch) 
-        print (f"Starting loss: {loss.item()}")
-        torch.sum(loss).backward() # gradients propegated to params
-        model.lm_head.weight = model.lm_head.weight + loss / (parameter.grad)
+        print (f"Starting loss: {(loss)}")
+        loss.backward() # gradients propegated to params
+        slope = loss / model.lm_head.weight.grad
+        print (slope)
+        lm_head_min = model.lm_head.weight + slope
+        with torch.no_grad(): model.lm_head.weight = torch.nn.Parameter(lm_head_min)
         loss, output = model(train_batch, labels=train_batch) 
-        print (f"Ending loss: {loss.item()}")
+        print (f"Ending loss: {loss}")
         return 
 
+    newton_iteration(model, train_data)
     newton_iteration(model, train_data)
 
 
