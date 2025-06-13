@@ -284,8 +284,16 @@ if __name__ == '__main__':
 		print (f"Ending loss: {loss.item()}")
 		return minimal_params
 
-	normal_solve(model, train_data)
-	#print (list(model.named_parameters()))
+	def newton_iteration(model, train_data):
+		train_batch = torch.stack(train_data[0:128], dim=0)
+		train_batch = train_batch.to('cuda') 
+		loss, output = model(train_batch, labels=train_batch) 
+		print (f"Starting loss: {loss.item()}")
+		loss.backward() # gradients propegated to params
+		model.lm_head.weight = model.lm_head.weight + loss / (parameter.grad)
+		return minimal_params
+
+	newton_iteration(model, train_data)
 
 
 

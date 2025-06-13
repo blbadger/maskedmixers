@@ -68,7 +68,6 @@ class LinearMixer(nn.Module):
             shift_labels = labels[..., 1:].contiguous()
             #loss = self.cel(shift_logits, shift_labels)
             one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2)
-            print (one_hots.shape)
             converted_labels = torch.tensor(one_hots, requires_grad=False, dtype=torch.float)
             loss = self.mse(shift_logits, converted_labels)
             return loss, output
@@ -181,7 +180,7 @@ if __name__ == '__main__':
         loss.backward() # gradients propegated to params
         slope = loss / model.lm_head.weight.grad
         print (slope)
-        lm_head_min = model.lm_head.weight + slope
+        lm_head_min = model.lm_head.weight - slope
         with torch.no_grad(): model.lm_head.weight = torch.nn.Parameter(lm_head_min)
         loss, output = model(train_batch, labels=train_batch) 
         print (f"Ending loss: {loss}")
