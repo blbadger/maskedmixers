@@ -61,6 +61,7 @@ class LinearMixer(nn.Module):
             x = block(x)
         
         if labels is not None:
+            x_prelim = x
             output = self.lm_head(x)
             labels = rearrange(labels, 'b p t -> b (p t)')
             output = rearrange(output, 'b t e -> b e t')
@@ -70,7 +71,7 @@ class LinearMixer(nn.Module):
             one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2)
             converted_labels = torch.tensor(one_hots, requires_grad=False, dtype=torch.float)
             loss = self.mse(shift_logits, converted_labels)
-            return loss, output
+            return loss, output, x_prelim
         else:
             return x
 
@@ -159,18 +160,15 @@ if __name__ == '__main__':
         return minimal_params
 
     def normal_solve(model, train_data):
-        train_batch = torch.stack(train_data[0:128], dim=0)
-        train_batch = train_batch.to('cuda') 
-        loss, output = model(train_batch, labels=train_batch) 
-        print (f"Starting loss: {loss.item()}")
-        # model.lm_head.weight = torch.inverse(model.lm_head.activations.T @ model.lm_head.activations) @ model.lm_head.activations.T
-        # model.mixerblocks[0].conv.weight = torch.inverse() @ model.conv_activations.T
-        train_batch = torch.nn.functional.one_hot(train_batch.squeeze(1), num_classes = len(tokenizer))
-        print (train_batch.shape)
-        model.wte.weight = torch.inverse(train_batch.T @ train_batch) @ train_batch.T @ actual_output
-        loss, output = model(train_batch, labels=train_batch) 
-        print (f"Ending loss: {loss.item()}")
-        return minimal_params
+        input_batch = torch.stack(train_data[0:128], dim=0).to('cuda')
+        loss, output, X = model(train_batch, labels=train_batch) 
+        print (f"Starting loss: {(loss)}")
+        beta_hat = torch.inverse(X.T @ X) @ X.T * target
+        with torch.no_grad():
+                model.lm_head.weight = torch.nn.Parameter(beta_hat)
+                loss, output = model(train_batch, labels=train_batch) 
+                print (f"Ending loss: {loss.item()}")
+        return model
 
     def newton_iteration(model, train_data):
         train_batch = torch.stack(train_data[0:32], dim=0)
