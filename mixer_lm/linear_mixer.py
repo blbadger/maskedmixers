@@ -144,6 +144,7 @@ class LinearMixer(nn.Module):
 			).to(device)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		self.cel = nn.CrossEntropyLoss()
+		self.relu = nn.ReLU()
 
 	def forward(self, input_ids, labels=None):
 		x = input_ids
@@ -151,7 +152,7 @@ class LinearMixer(nn.Module):
 		x = self.wte(x)
 		for block in self.mixerblocks:
 			x = block(x)
-		
+		x = self.relu(x)	
 		if labels is not None:
 			output = self.lm_head(x)
 			labels = rearrange(labels, 'b p t -> b (p t)')
@@ -191,7 +192,7 @@ if __name__ == '__main__':
 		return output
 
 
-	def batch_tokenize_input(train_text, test_text, length=20000, batch_size=1024):
+	def batch_tokenize_input(train_text, test_text, length=2000000, batch_size=1024):
 		train_data, test_data = [], []
 		max_length = 128
 
@@ -250,7 +251,7 @@ if __name__ == '__main__':
 	)
 
 	model.train()
-	#trainer.train() 
+	trainer.train() 
 	print (model.mixerblocks[0])
 	def train_solver(model, train_data):
 		train_batch = torch.stack(train_data[0:128], dim=0)
@@ -293,7 +294,7 @@ if __name__ == '__main__':
 		model.lm_head.weight = model.lm_head.weight + loss / (parameter.grad)
 		return minimal_params
 
-	newton_iteration(model, train_data)
+	#newton_iteration(model, train_data)
 
 
 

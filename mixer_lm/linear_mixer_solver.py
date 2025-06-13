@@ -67,15 +67,15 @@ class LinearMixer(nn.Module):
             output = rearrange(output, 'b t e -> b e t')
             shift_logits = output[..., :-1].contiguous()
             shift_labels = labels[..., 1:].contiguous()
-            #loss = self.cel(shift_logits, shift_labels)
-            one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2)
+            #loss = self.cel(shift_logits, shift_label)
+            one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2) * 10
             converted_labels = torch.tensor(one_hots, requires_grad=False, dtype=torch.float)
             loss = self.mse(shift_logits, converted_labels)
             return loss, output, x_prelim
         else:
             return x
 
-tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/Desktop/tiny_token_16k/tokenizer.json")
+tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/Desktop/tiny_token_8k/tokenizer.json")
 #tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_tinystories_16k")
 #tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = 2
@@ -86,8 +86,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 tokenized_length = 128
 
 if __name__ == '__main__':
-    dim = 16000
-    model = LinearMixer(n_vocab, dim, 1).float()
+    dim = 30
+    model = LinearMixer(n_vocab, dim, 1).double()
     print (model)
 
     # cached dataset
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     #trainer.train() 
     print (model.mixerblocks[0])
     def train_solver(model, train_data):
-        train_batch = torch.stack(train_data[0:128], dim=0)
+        train_batch = torch.stack(train_data[0:1], dim=0)
         print (train_batch.shape)
         train_batch = train_batch.to('cuda') 
         loss, output = model(train_batch, labels=train_batch) 
@@ -158,16 +158,27 @@ if __name__ == '__main__':
         minimal_lm = torch.pinverse(model.lm_head.weight.grad) @ torch.zeros(model.lm_head.weight.shape).to('cuda')
         print (f'minimal lm found in {time.time() - start_time} seconds')
         return minimal_params
-
+    
+    @torch.no_grad()
     def normal_solve(model, train_data):
-        input_batch = torch.stack(train_data[0:128], dim=0).to('cuda')
-        loss, output, X = model(train_batch, labels=train_batch) 
+        train_batch = torch.stack(train_data[0:1], dim=0).to('cuda')
+        loss, output, X = model(train_batch, labels=train_batch)
         print (f"Starting loss: {(loss)}")
-        beta_hat = torch.inverse(X.T @ X) @ X.T * target
+        target = torch.nn.functional.one_hot(train_batch, num_classes=len(tokenizer)).to(torch.double).squeeze(1) * 10
+        prefix = torch.inverse(X.transpose(1, 2) @ X) @ X.transpose(1, 2)
+        print (prefix.shape, target.shape)
+        beta_hat = torch.mean(prefix @ target, dim=0).T
+        print (f'Optimal params computed: {beta_hat.shape}')
+        print (beta_hat.shape, model.lm_head.weight.shape)
         with torch.no_grad():
                 model.lm_head.weight = torch.nn.Parameter(beta_hat)
-                loss, output = model(train_batch, labels=train_batch) 
+                loss, output, X = model(train_batch, labels=train_batch) 
+                #actual_beta = torch.mean((prefix @ target, dim=0)
+                #print (actual_beta.shape, X.shape)
+                #actual_output = X @ actual_beta
+                #actual_loss = torch.sum((actual_output - target)**2)
                 print (f"Ending loss: {loss.item()}")
+                #print (f"actual loss: {actual_loss}")
         return model
 
     def newton_iteration(model, train_data):
@@ -184,8 +195,8 @@ if __name__ == '__main__':
         print (f"Ending loss: {loss}")
         return 
 
-    newton_iteration(model, train_data)
-    newton_iteration(model, train_data)
+    normal_solve(model, train_data)
+    #newton_iteration(model, train_data)
 
 
 

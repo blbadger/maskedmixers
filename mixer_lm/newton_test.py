@@ -23,6 +23,7 @@ def normal_solve(model):
         output = model(X)
         loss = mse(output, target) # learns an algebraic kernel
         print (f"Starting loss: {(loss)}")
+        print ((torch.inverse(X.T @ X) @ X.T).shape, target.shape)
         beta_hat = torch.inverse(X.T @ X) @ X.T * target
         with torch.no_grad():
                 model.weight = torch.nn.Parameter(beta_hat)
