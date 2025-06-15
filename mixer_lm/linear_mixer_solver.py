@@ -67,10 +67,10 @@ class LinearMixer(nn.Module):
             output = rearrange(output, 'b t e -> b e t')
             shift_logits = output[..., :-1].contiguous()
             shift_labels = labels[..., 1:].contiguous()
-            #loss = self.cel(shift_logits, shift_label)
-            one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2) * 10
-            converted_labels = torch.tensor(one_hots, requires_grad=False, dtype=torch.float)
-            loss = self.mse(shift_logits, converted_labels)
+            loss = self.cel(shift_logits, shift_label)
+            # one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2) * 10
+            # converted_labels = torch.tensor(one_hots, requires_grad=False, dtype=torch.float)
+            # loss = self.mse(shift_logits, converted_labels)
             return loss, output, x_prelim
         else:
             return x
@@ -86,7 +86,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 tokenized_length = 128
 
 if __name__ == '__main__':
-    dim = 30
+    dim = 500
     model = LinearMixer(n_vocab, dim, 1).double()
     print (model)
 
@@ -140,7 +140,8 @@ if __name__ == '__main__':
     model.train()
     model = model.to('cuda')
     #trainer.train() 
-    print (model.mixerblocks[0])
+
+
     def train_solver(model, train_data):
         train_batch = torch.stack(train_data[0:1], dim=0)
         print (train_batch.shape)
@@ -181,22 +182,22 @@ if __name__ == '__main__':
                 #print (f"actual loss: {actual_loss}")
         return model
 
-    def newton_iteration(model, train_data):
-        train_batch = torch.stack(train_data[0:32], dim=0)
-        train_batch = train_batch.to('cuda') 
-        loss, output = model(train_batch, labels=train_batch) 
-        print (f"Starting loss: {(loss)}")
-        loss.backward() # gradients propegated to params
-        slope = loss / model.lm_head.weight.grad
-        print (slope)
-        lm_head_min = model.lm_head.weight - slope
-        with torch.no_grad(): model.lm_head.weight = torch.nn.Parameter(lm_head_min)
-        loss, output = model(train_batch, labels=train_batch) 
-        print (f"Ending loss: {loss}")
+    def newton_iterations(model, train_batch, loss_constant=0.5):
+        for i in range(10):
+                output = model(train_batch)
+                loss = mse(output, target) - loss_constant # subtract suspected irreducible loss so root exists
+                print (f"Starting loss: {(loss)}")
+                loss.backward()
+                loss_term = torch.pinverse(model.lm_head.weight.grad) * loss
+                model.lm_head.weight = torch.nn.Parameter(model.lm_head.weight - loss_term.tranpose(1, 2))
+                with torch.no_grad(): 
+                        output = model(train_batch)
+                        loss = mse(output, target) - loss_constant
+                        print (f"Ending loss: {loss} \n")
         return 
 
-    normal_solve(model, train_data)
-    #newton_iteration(model, train_data)
+    # normal_solve(model, train_data)
+    newton_iterations(model, train_data)
 
 
 

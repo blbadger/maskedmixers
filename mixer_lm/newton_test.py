@@ -1,20 +1,17 @@
 import torch
 
-def newton_iteration(model):
-        train_batch = torch.stack([torch.tensor([30.,10.]),torch.tensor([-3., 5.])], dim=0)
-        target = torch.stack([torch.tensor([0.])], dim=0)
-        output = model(train_batch)
-        loss = mse(output, target) # learns an algebraic kernel
-        print (f"Starting loss: {(loss)}")
-        loss.backward() # gradients propegated to params
-        # print (model.weight.grad)
-        mini = model.weight - torch.pinverse(model.weight.grad) * loss
-        with torch.no_grad(): 
-                model.weight = torch.nn.Parameter(mini)
+def newton_iteration(model, train_batch, target, loss_constant=0.9):
+        for i in range(10):
                 output = model(train_batch)
-                loss = mse(output, target)
-                print (output)
-                print (f"Ending loss: {loss} \n")
+                loss = mse(output, target) - loss_constant # subtract suspected irreducible loss so root exists
+                print (f"Starting loss: {(loss)}")
+                loss.backward()
+                loss_term = torch.pinverse(model.weight.grad) * loss
+                model.weight = torch.nn.Parameter(model.weight - loss_term.T)
+                with torch.no_grad(): 
+                        output = model(train_batch)
+                        loss = mse(output, target) - loss_constant
+                        print (f"Ending loss: {loss} \n")
         return 
 
 def normal_solve(model):
@@ -49,7 +46,10 @@ def grad_descent(model):
         return 
 
 mse = torch.nn.MSELoss()
-model = torch.nn.Linear(2, 2, bias=False)
-normal_solve(model)
-#for i in range(10):
-#        newton_iteration(model)
+model = torch.nn.Linear(200, 1, bias=False)
+# normal_solve(model)
+# train_batch = torch.stack([torch.tensor([5., -1., 1., 2.]),torch.tensor([-3., 5., -2., 0.])], dim=0)
+# target = torch.stack([torch.tensor([7.]), torch.tensor([1.])], dim=0)
+train_batch = torch.randn(1000, 200)
+target = torch.randn(1000, 1)
+newton_iteration(model, train_batch, target)
