@@ -24,19 +24,14 @@ def newton_iterations_components(model, train_batch, target, loss_constant=0.0):
 		output = model(train_batch)
 		loss = mse(output, target) - loss_constant # subtract suspected irreducible loss so root exists
 		for j in range(3):
-			print (f"Starting loss: {(loss)}")
 			loss[0][j].backward(retain_graph=True)
 			loss_term = torch.pinverse(model.weight.grad) * loss[0][j]
 			loss_terms.append(loss_term)
 			model.zero_grad()
 
-		for loss_terms in loss_term:
+		for loss_term in loss_terms:
 			model.weight = torch.nn.Parameter(model.weight - loss_term.T)
-		
-		with torch.no_grad():
-			output = model(train_batch)
-			loss = mse(output, target) - loss_constant
-			print (f"Loss: {torch.mean(loss)} \n")
+		print (f"Loss: {torch.sum(loss)}")
 	return
 
 def newton_iterations_recalculated(model, train_batch, target, loss_constant=0.0):

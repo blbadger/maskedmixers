@@ -83,7 +83,7 @@ print (tokenizer.eos_token)
 n_vocab = len(tokenizer)# fails to properly read tokeinizer size
 print (f"N vocab {n_vocab}")
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-tokenized_length = 128
+tokenized_length = 32
 
 if __name__ == '__main__':
     dim = 1000
@@ -181,10 +181,10 @@ if __name__ == '__main__':
                 #print (f"actual loss: {actual_loss}")
         return model
 
-    def newton_iterations(model, train_batch, loss_constant=0.05):
+    def newton_iterations(model, train_batch, loss_constant=0.01):
         train_batch = torch.stack(train_data[0:1], dim=0).to('cuda')
         for i in range(5):
-                #model.zero_grad()
+                model.zero_grad()
                 loss, output, _ = model(train_batch, labels=train_batch)
                 loss -= loss_constant # subtract suspected irreducible loss so root exists
                 print (f"Starting loss: {(loss)}")
@@ -198,8 +198,8 @@ if __name__ == '__main__':
                         print (f"Ending loss: {loss-loss_constant} \n")
         return 
 
-    def newton_components(model, train_data, loss_constant=0.1):
-        train_batch = torch.stack(train_data[0:1], dim=0).to('cuda')
+    def newton_components(model, train_data, loss_constant=0.01):
+        train_batch = torch.stack(train_data[0:100], dim=0).to('cuda')
         for i in range(10):
             print (f'Iteration {i}')
             loss, output, _ = model(train_batch, labels=train_batch)
@@ -213,20 +213,20 @@ if __name__ == '__main__':
                     model.zero_grad()
             for loss_term in loss_terms:
                 model.lm_head.weight = torch.nn.Parameter(model.lm_head.weight - loss_term.T)
-                print (f"Loss: {(torch.mean(loss))}")
+            print (f"Loss: {(torch.mean(loss))}")
         return 
 
-    def newton_components_recalculated(model, train_data, loss_constant=0.1):
-        train_batch = torch.stack(train_data[0:1], dim=0).to('cuda')
+    def newton_components_recalculated(model, train_data, loss_constant=0.01):
+        train_batch = torch.stack(train_data[0:100], dim=0).to('cuda')
         for i in range(10):
             for j in range(tokenized_length-1):
                 for k in range(len(train_batch)):
                     loss, output, _ = model(train_batch, labels=train_batch)
                     loss -= loss_constant # subtract suspected irreducible loss so root exists
-                    print (f"Loss: {(torch.mean(loss))}")
                     loss[k][j].backward()
                     loss_term = torch.pinverse(model.lm_head.weight.grad) * loss[k][j] 
                     model.lm_head.weight = torch.nn.Parameter(model.lm_head.weight - loss_term.T)
+            print (f"Loss: {(torch.mean(loss))}")
         return
 
     # normal_solve(model, train_data)
