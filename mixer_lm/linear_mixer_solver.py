@@ -80,10 +80,10 @@ tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/Desktop/tiny_t
 #tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = 2
 print (tokenizer.eos_token)
-n_vocab = len(tokenizer)# fails to properly read tokeinizer size
+n_vocab = len(tokenizer) # actually a very small n=66 tokenizer
 print (f"N vocab {n_vocab}")
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-tokenized_length = 32
+tokenized_length = 16
 
 if __name__ == '__main__':
     dim = 1000
@@ -138,26 +138,18 @@ if __name__ == '__main__':
 
     model.train()
     model = model.to('cuda')
-    #trainer.train() 
 
-
-    def train_solver(model, train_data):
-        train_batch = torch.stack(train_data[0:1], dim=0)
-        print (train_batch.shape)
-        train_batch = train_batch.to('cuda') 
-        loss, output = model(train_batch, labels=train_batch) 
-        print (f"Starting loss: {loss.item()}")
-        loss.backward()
-        start_time = time.time()    
-        minimal_wte = torch.pinverse(model.wte.weight.grad) @ torch.zeros(model.wte.weight.shape).to('cuda')
-        print (f'minimal wte found in {time.time() - start_time} seconds')
-        start_time = time.time()
-        minimal_conv = torch.pinverse(model.mixerblocks[0].conv.weight.grad) @ torch.zeros(model.mixerblocks[0].conv.weight.shape).to('cuda')
-        print (f'minimal conv found ion {time.time() - start_time} seconds')
-        start_time = time.time()
-        minimal_lm = torch.pinverse(model.lm_head.weight.grad) @ torch.zeros(model.lm_head.weight.shape).to('cuda')
-        print (f'minimal lm found in {time.time() - start_time} seconds')
-        return minimal_params
+    def grad_descent(model, train_data, lr=0.005):
+        for i in range(1000):
+            train_batch = torch.stack(train_data[0:100], dim=0).to('cuda')
+            loss, output, _ = model(train_batch, labels=train_batch)
+            torch.mean(loss).backward() # gradients propegated to params
+            with torch.no_grad(): 
+                model.lm_head.weight -= lr * model.lm_head.weight.grad
+                output = model(train_batch, labels=train_batch)
+                print (f"Grad descent iteration {i} loss: {torch.mean(loss)} \n")
+            model.zero_grad()
+        return 
     
     @torch.no_grad()
     def normal_solve(model, train_data):
@@ -173,12 +165,12 @@ if __name__ == '__main__':
         with torch.no_grad():
                 model.lm_head.weight = torch.nn.Parameter(beta_hat)
                 loss, output, X = model(train_batch, labels=train_batch) 
-                #actual_beta = torch.mean((prefix @ target, dim=0)
-                #print (actual_beta.shape, X.shape)
-                #actual_output = X @ actual_beta
-                #actual_loss = torch.sum((actual_output - target)**2)
+                actual_beta = torch.mean((prefix @ target, 0))
+                print (actual_beta.shape, X.shape)
+                actual_output = X @ actual_beta
+                actual_loss = torch.sum((actual_output - target)**2)
                 print (f"Ending loss: {loss.item()}")
-                #print (f"actual loss: {actual_loss}")
+                print (f"actual loss: {actual_loss}")
         return model
 
     def newton_iterations(model, train_batch, loss_constant=0.01):
@@ -198,7 +190,7 @@ if __name__ == '__main__':
                         print (f"Ending loss: {loss-loss_constant} \n")
         return 
 
-    def newton_components(model, train_data, loss_constant=0.01):
+    def newton_components(model, train_data, loss_constant=0.1):
         train_batch = torch.stack(train_data[0:100], dim=0).to('cuda')
         for i in range(10):
             print (f'Iteration {i}')
@@ -216,23 +208,29 @@ if __name__ == '__main__':
             print (f"Loss: {(torch.mean(loss))}")
         return 
 
-    def newton_components_recalculated(model, train_data, loss_constant=0.01):
+    def newton_components_recalculated(model, train_data, loss_constant=0.9):
         train_batch = torch.stack(train_data[0:100], dim=0).to('cuda')
-        for i in range(10):
+        with torch.no_grad():
+            loss, output, _ = model(train_batch, labels=train_batch)
+            print (f"Starting loss: {torch.mean(loss)}")
+        for i in range(100):
             for j in range(tokenized_length-1):
                 for k in range(len(train_batch)):
                     loss, output, _ = model(train_batch, labels=train_batch)
                     loss -= loss_constant # subtract suspected irreducible loss so root exists
                     loss[k][j].backward()
                     loss_term = torch.pinverse(model.lm_head.weight.grad) * loss[k][j] 
-                    model.lm_head.weight = torch.nn.Parameter(model.lm_head.weight - loss_term.T)
-            print (f"Loss: {(torch.mean(loss))}")
+                    with torch.no_grad():
+                        model.lm_head.weight-= loss_term.T
+                    model.zero_grad()
+            print (f"Step {i} Loss: {(torch.mean(loss))}")
         return
 
     # normal_solve(model, train_data)
     # newton_iterations(model, train_data)
     # newton_components(model, train_data)
     newton_components_recalculated(model, train_data)
+    # grad_descent(model, train_data)
 
 
 
