@@ -75,20 +75,17 @@ def newton_jacobian(model, train_batch, target):
 		model.zero_grad()
 	return 
 
-def normal_solve(model):
-	X = torch.stack([torch.tensor([30.,10.]),torch.tensor([-3., 5.])], dim=0)
-	target = torch.stack([torch.tensor([0., 0.])], dim=0)
+def normal_solve(model, X, target):
 	output = model(X)
 	loss = mse(output, target) # learns an algebraic kernel
-	print (f"Starting loss: {(loss)}")
-	print ((torch.inverse(X.T @ X) @ X.T).shape, target.shape)
-	beta_hat = torch.inverse(X.T @ X) @ X.T @ target
+	print (f"Starting loss: {torch.mean(loss)}")
+	beta_hat = torch.pinverse(X) @ target
 	with torch.no_grad():
-		model.weight = torch.nn.Parameter(beta_hat)
+		model.weight = torch.nn.Parameter(beta_hat.T)
 		output = model(X)
 		loss = mse(output, target)
 		print (output)
-		print (f"Ending loss: {loss} \n")
+		print (f"Ending loss: {torch.mean(loss)} \n")
 	return
 
 def grad_descent(model):
@@ -110,11 +107,11 @@ mse = torch.nn.MSELoss(reduction='none')
 mse_nored = torch.nn.MSELoss(reduction='none')
 model = torch.nn.Linear(4, 3, bias=False)
 # normal_solve(model)
-train_batch = torch.stack([torch.tensor([5., -1., 1., 2.])], dim=0)
-target = torch.stack([torch.tensor([7., 15., 0.])], dim=0)
-# train_batch = torch.randn(1000, 200)
-# target = torch.randn(1000, 1)
+train_batch = torch.stack([torch.tensor([5., -1., 1., 2.]), torch.tensor([3., 0., -3., -1.])], dim=0)
+target = torch.stack([torch.tensor([7., 8., 0.]), torch.tensor([-1., -9., 0.])], dim=0)
+# train_batch = torch.randn(1000, 100)
+# target = torch.randn(1000, 100)
 # newton_iterations(model, train_batch, target)
 # newton_iterations_components(model, train_batch, target)
-newton_iterations_recalculated(model, train_batch, target)
-# newton_jacobian(model, train_batch, target)
+# newton_iterations_recalculated(model, train_batch, target)
+normal_solve(model, train_batch, target)
