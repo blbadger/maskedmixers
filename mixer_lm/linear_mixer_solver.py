@@ -157,7 +157,7 @@ if __name__ == '__main__':
     
     @torch.no_grad()
     def normal_solve(model, train_data):
-        train_batch = torch.stack(train_data[0:100], dim=0).to('cuda')
+        train_batch = torch.stack(train_data[0:200], dim=0).to('cuda')
         loss, output, X = model(train_batch, labels=train_batch)
         print (f"Starting loss: {loss.item()}")
         target = torch.nn.functional.one_hot(train_batch, num_classes=len(tokenizer)).to(torch.double).squeeze(1)
@@ -166,10 +166,9 @@ if __name__ == '__main__':
         beta_hat = torch.mean(prefix @ target, dim=0).T
         print (f'Optimal params computed: {beta_hat.shape}')
         print (beta_hat.shape, model.lm_head.weight.shape)
-        with torch.no_grad():
-                model.lm_head.weight = torch.nn.Parameter(beta_hat)
-                loss, output, X = model(train_batch, labels=train_batch) 
-                print (f"Ending loss: {loss.item()}")
+        model.lm_head.weight = torch.nn.Parameter(beta_hat)
+        loss, output, X = model(train_batch, labels=train_batch) 
+        print (f"Ending loss: {loss.item()}")
         return model
 
     def newton_iterations(model, train_batch, loss_constant=0.01):
