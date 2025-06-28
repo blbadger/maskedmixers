@@ -2,9 +2,10 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 import torch
 
-file_path = "/home/bbadger/Desktop/TinyStories-train.txt"
-#dataset = load_dataset("roneneldan/TinyStories")
-dataset = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT")
+dataset = load_dataset("roneneldan/TinyStories", split="train")
+print (len(dataset))
+#dataset = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT")
+#old_tokenizer = AutoTokenizer.from_pretrained("/home/bbadger//tiny_token_8k")
 old_tokenizer = AutoTokenizer.from_pretrained("openlm-research/open_llama_3b")
 
 class TextDataset(torch.utils.data.Dataset):
@@ -35,9 +36,19 @@ class TextDataset(torch.utils.data.Dataset):
         batch = self.line_batches[idx]
         return batch
 
+
+class TinyDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset):
+        super().__init__()
+        self.dataset = dataset
+    def __len__(self):
+        return len(self.dataset)
+    def __getitem__(self, idx):
+        return self.dataset["text"][idx]
+
 # Create the dataset, and process the full file. 
-# dataset = TextDataset(dataset, batch_size=1024)
-# DataLoader for efficient batch processing
+#dataset = TinyDataset(dataset)
+#DataLoader for efficient batch processing
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=None)
 
 def get_training_corpus(dataset):
@@ -48,8 +59,9 @@ def get_training_corpus(dataset):
         yield sample['markdown']
 
 training_corpus = get_training_corpus(dataset)
-
 # Train the new tokenizer
-tokenizer = old_tokenizer.train_new_from_iterator(dataloader, 8192)
+iterable_dataset = [i["text"] for i in dataset]
+print (len(iterable_dataset))
+tokenizer = old_tokenizer.train_new_from_iterator(iterable_dataset, 8192)
 tokenizer.save_pretrained("/home/bbadger/Desktop/tiny_token_8k")
 print ("Tokenizer saved")

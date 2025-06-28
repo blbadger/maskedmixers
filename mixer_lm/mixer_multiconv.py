@@ -13,7 +13,7 @@ def FeedForward(dim, expansion_factor=4):
 	dropout = nn.Dropout(p=0.05)
 	return nn.Sequential(
 		nn.Linear(dim, inner_dim),
-		nn.Dropout(p=0.05),
+		#nn.Dropout(p=0.05),
 		nn.GELU(),
 		nn.Linear(inner_dim, dim)
 	)
@@ -40,11 +40,10 @@ class MixerHead(nn.Module):
 	def forward(self, x: torch.tensor):
 
 		for i in range(len(self.convs)):
-			masked_conv = self.softmax(torch.tril(rearrange(self.convs[i].weight, 'f d p -> p f d')))
+			masked_conv = torch.tril(rearrange(self.convs[i].weight, 'f d p -> p f d'))
 			self.convs[i].weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
 
 		hidden_layer = []
-
 		for head in range(self.n_heads):
 			projection = self.proj_head[i](x)
 			conv_projection = self.convs[i](x)
@@ -63,7 +62,7 @@ class MixerBlock(nn.Module):
 		self.seq_layernorm = nn.LayerNorm(dim)
 		self.dim = dim
 		self.length = length
-		self.mixerhead = MixerHead(1024, 512, 512, heads)
+		self.mixerhead = MixerHead(dim, length, dim, heads)
 		self.patch_ff = FeedForward(dim)
 
 	def forward(self, x: torch.tensor):
@@ -82,12 +81,12 @@ class MixerBlock(nn.Module):
 
 class MultiHeadedMixer(nn.Module):
 
-	def __init__(self, n_vocab, dim, depth, length=512, heads=4):
+	def __init__(self, n_vocab, dim, depth, length=512, heads=2):
 		super().__init__()
 		self.wte = nn.Embedding(n_vocab, dim)
 		self.wte_second = nn.Linear(dim, dim)
 		self.mixerblocks = nn.ModuleList(
-			[MixerBlock(dim, length)
+			[MixerBlock(dim, length, heads=heads)
 			for i in range(depth)]
 			)
 	
@@ -112,7 +111,6 @@ class MultiHeadedMixer(nn.Module):
 def count_parameters(model):
 	table = PrettyTable(["Modules", "Parameters"])
 	total_params = 0
-	print ()
 	for name, parameter in model.named_parameters():
 		if not parameter.requires_grad:
 			continue
@@ -234,17 +232,17 @@ n_vocab = len(tokenizer)
 if __name__ == '__main__':
 	# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 	print (tokenizer.is_fast)
-	tokenized_length = 512
+	tokenized_length = 3
 	dim = 1024
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
-	model = MultiHeadedMixer(n_vocab, dim, 8, tokenized_length)
-
+	model = MultiHeadedMixer(n_vocab, dim, 8, length=tokenized_length).to(device)
+	print (model)
 	# check causality
-	# one = torch.tensor([[[1, 2, 3]]]).to(device)
-	# two = torch.tensor([[[1, 4, 3]]]).to(device)
-	# print (model(one, labels=one))
-	# print (model(two, labels=two))
-	# print (model)
+	one = torch.tensor([[[1, 2, 4]]]).to(device)
+	two = torch.tensor([[[1, 2, 3]]]).to(device)
+	print (model(one, labels=one))
+	print (model(two, labels=two))
+	print (model)
 
 	count_parameters(model)
 
@@ -276,7 +274,7 @@ if __name__ == '__main__':
 		save_steps=4000,
 		learning_rate=5e-4,
 		fp16=True,
-		evaluation_strategy='steps',
+		eval_strategy='steps',
 		output_dir='~/Desktop/tinystories_mixer_1024_n8_b32_h2_softmax',
 		optim='adamw_torch',
 		overwrite_output_dir=True,

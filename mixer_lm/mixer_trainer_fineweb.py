@@ -212,7 +212,6 @@ class LanguageMixer(nn.Module):
 				)
 			for i in range(depth)]
 			).to(device)
-		#self.up_proj1, self.up_proj2 = nn.Linear(dim, dim*2), nn.Linear(dim*2, dim*3)
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		if tie_weights:
 			self.wte.weight = self.lm_head.weight
@@ -252,18 +251,18 @@ tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
 print ('Vocab size: ', n_vocab)
 
-tokenized_length = 512
+tokenized_length = 32
 dim = 1024
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # mixer model initialization
-#model = MultiHeadedMixer(n_vocab, dim, 8, heads=4).float().to(device)
-#model = LanguageMixer(n_vocab, dim, 16).float().float().to(device)
-model = AutoencodingMixer(n_vocab, dim, 16, tokenized_length).float()
+model = MultiHeadedMixer(n_vocab, dim, 16, heads=1).float().to(device)
+#model = LanguageMixer(n_vocab, dim, 1).float().float().to(device)
+#model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
 
-#count_parameters(model)
-train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
-test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
+count_parameters(model)
+train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c32-packed-debatched"
+test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test-c32-packed-debatched"
 
 def tokenization(example):
 	tokens = tokenizer.batch_encode_plus(
@@ -300,21 +299,21 @@ test_dataset = load_from_disk(test_path, keep_in_memory=None)
 mlflow.end_run()
 #print (train_dataset[0])
 training_arguments = transformers.TrainingArguments(
-	num_train_epochs=2,
-	per_device_train_batch_size=16,
-	per_device_eval_batch_size=16,
+	num_train_epochs=3,
+	per_device_train_batch_size=256,
+	per_device_eval_batch_size=256,
 	warmup_steps=500,
 	eval_steps=4000,
 	save_steps=8000,
-	gradient_accumulation_steps=4,
+	gradient_accumulation_steps=1,
 	learning_rate=5e-4,
 	fp16=True,
 	eval_strategy='steps',
-	output_dir='~/Desktop/finemath_autoencoding_mixer_1024_n16_b16_lpad',
+	output_dir='~/Desktop/fineweb_linear_mixer_1024_n16_h32_c32',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	save_safetensors=True,
-	max_steps=500000
+	#max_steps=500000
 )
 print ('training begun')
 
@@ -326,5 +325,5 @@ trainer = transformers.Trainer(
 	data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
 )
 
-#trainer.train("/home/bbadger/Desktop/finemath_autoencoding_mixer_1024_n8_b32_lpad/checkpoint-8000")
+#trainer.train("/home/bbadger/Desktop/finemath_autoencoding_mixer_1024_n8_b16_c1024/checkpoint-8000")
 trainer.train()

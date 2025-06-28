@@ -16,7 +16,7 @@ def FeedForward(dim, expansion_factor=1):
 	inner_dim = int(dim * expansion_factor)
 	return nn.Sequential(
 		nn.Linear(dim, inner_dim),
-		# nn.GELU(),
+		nn.GELU(),
 		nn.Linear(inner_dim, dim)
 	)
 
@@ -93,10 +93,12 @@ class MixerBlock(nn.Module):
 
 		residual = x
 		x = self.conv(x) + residual
+		residual = x
+		x = self.patch_ff(x) + residual
 		return x
 
 
-class LanguageMixer(nn.Module):
+class NearLinearMixer(nn.Module):
 
 	def __init__(self, n_vocab, dim, depth, tie_weights=False):
 		super().__init__()
@@ -106,7 +108,7 @@ class LanguageMixer(nn.Module):
 				dim = dim,
 				length = tokenized_length,
 				clm_mask=True,
-				expand_conv=True
+				expand_conv=False
 				)
 			for i in range(depth)]
 			).to(device)
@@ -175,8 +177,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 tokenized_length = 128
 
 if __name__ == '__main__':
-	dim = 16000
-	model = LinearMixer(n_vocab, dim, 1).float()
+	dim = 4096
+	model = NearLinearMixer(n_vocab, dim, 1).float()
 	print (model)
 
 	# cached dataset
@@ -194,7 +196,7 @@ if __name__ == '__main__':
 
 	def batch_tokenize_input(train_text, test_text, length=2000000, batch_size=1024):
 		train_data, test_data = [], []
-		max_length = 128
+		max_length = tokenized_length
 
 		for i in tqdm(range(0, length, batch_size)):
 			input_ids = tokenizer.batch_encode_plus(
@@ -227,7 +229,7 @@ if __name__ == '__main__':
 	train_data, test_data = debatch_input(train_data), debatch_input(test_data)
 
 	training_arguments = transformers.TrainingArguments(
-		num_train_epochs=5,
+		num_train_epochs=3.1,
 		per_device_train_batch_size=128,
 		per_device_eval_batch_size=128,
 		warmup_steps=500,
@@ -236,7 +238,7 @@ if __name__ == '__main__':
 		learning_rate=5e-4,
 		fp16=True,
 		eval_strategy='steps',
-		output_dir='~/Desktop/tinystories_linearmixer_16k_c128',
+		output_dir='~/Desktop/tinystories_linearmixer_4k_c128_b128',
 		optim='adamw_torch',
 		overwrite_output_dir=True,
 		save_safetensors=True

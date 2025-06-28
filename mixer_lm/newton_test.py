@@ -115,3 +115,4 @@ target = torch.stack([torch.tensor([7., 8., 0.]), torch.tensor([-1., -9., 0.])],
 # newton_iterations_components(model, train_batch, target)
 # newton_iterations_recalculated(model, train_batch, target)
 normal_solve(model, train_batch, target)
+

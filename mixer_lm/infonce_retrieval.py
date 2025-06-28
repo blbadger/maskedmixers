@@ -206,7 +206,7 @@ def infoNCEloss(output, matching_index=None, embedding_index=-2):
 
 class RetrievalDataset(torch.utils.data.Dataset):
 
-	def __init__(self, text_tokens, summary_tokens, batch_size=128, replace=False, right_padded=False):
+	def __init__(self, text_tokens, summary_tokens, batch_size=8, replace=False, right_padded=False):
 		self.summary_tokens = summary_tokens
 		self.text_tokens = text_tokens
 		self.context_length = len(summary_tokens[0])
@@ -276,7 +276,7 @@ if __name__ == '__main__':
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 	n_context = tokenized_length
 
-	use_mixer = True
+	use_mixer = False
 	use_autoencoder = False
 	if use_mixer:
 		#initialize retrieval model
@@ -310,7 +310,7 @@ if __name__ == '__main__':
 
 		else:
 			model = LlamaForCausalLM(configuration)
-			load_model(model, '/home/bbadger/Desktop/finemath_llama_n16_h4_lpad_c512/checkpoint-200000/model.safetensors')
+			load_model(model, '/home/bbadger/Desktop/finemath_llama_n16_h4_lpad_c512/chkpt-200000/model.safetensors')
 			retrieval_model = RetrievalTransformer(model).float()
 
 	model = retrieval_model
@@ -323,27 +323,28 @@ if __name__ == '__main__':
 		for k in f.keys():
 			tokens[k] = f.get_tensor(k)
 
-	split_index = 380000
+	split_index = 5000
 	train_dataset = RetrievalDataset(tokens['text'][:split_index], tokens['summary'][:split_index], right_padded=False)
 	test_dataset = RetrievalDataset(tokens['text'][split_index:], tokens['summary'][split_index:], right_padded=False)
 
 
 	pad_token = int(tokenizer.encode(tokenizer.pad_token)[-1])
 	training_arguments = transformers.TrainingArguments(
-		num_train_epochs=1,
+		num_train_epochs=7,
 		per_device_train_batch_size=1, # actually defined in dataset subclass
 		per_device_eval_batch_size=1, # actually defined in dataset subclass
-		warmup_steps=500,
-		eval_steps=10000,
+		warmup_steps=50,
+		eval_steps=1000,
 		save_steps=10000,
+		gradient_accumulation_steps=8,
 		learning_rate=1e-4,
 		fp16=True,
 		eval_strategy='steps',
-		output_dir='~/Desktop/contrastive_finemath_autoencoding_mixer_500pre_400k_1024_n8_b32',
+		output_dir='~/Desktop/contrastive_5k_test',
 		optim='adamw_torch',
 		overwrite_output_dir=True,
 		save_safetensors=True,
-		logging_steps=500
+		logging_steps=50
 	)
 
 	trainer = transformers.Trainer(
