@@ -4,10 +4,11 @@ from datasets import load_dataset, load_from_disk, Dataset
 import pyarrow as pa
 import shutil
 
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_8k")
+tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_enwik9_8k")
 tokenizer.pad_token = tokenizer.eos_token
 
-def packed_tokenization(example, n_ctx=32):
+
+def packed_tokenization(example, n_ctx=512):
     tokens = tokenizer.encode_plus(
 			example['text'],
 			add_special_tokens=False,
@@ -43,9 +44,12 @@ def map_dataset(train_path, test_path, split_index=50000, packed=False):
 	#test_text = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT", streaming=False).take(split_index)
 
 	# finemath loaders
-	train_text = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=16).skip(split_index)
-	test_text = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=16).take(split_index)
-		
+	#train_text = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=16).skip(split_index)
+	#test_text = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=16).take(split_index)
+	
+	train_text = load_dataset("haukur/enwik9", split="train")
+	test_text = load_dataset("haukur/enwik9", split="train")
+	
 	if packed:
 		batch = False
 		tokenize = packed_tokenization
@@ -70,8 +74,8 @@ def debatch(example):
 	if not debatched_inputs: return [{'input_ids': torch}]
 	return pa.Table.from_pylist(debatched_inputs)
 
-train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
-test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
+train_path = "/home/bbadger/Desktop/enwik9-tokenized-train-c512-lpad-8k"
+test_path = "/home/bbadger/Desktop/enwik9-tokenized-test-c512-lpad-8k"
 
 if __name__ == '__main__':
 	packed=True

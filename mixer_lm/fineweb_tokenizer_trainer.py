@@ -40,8 +40,9 @@ def get_training_corpus(dataset, batch_size=1):
 
 
 if __name__ == '__main__':
-    dataset = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT")
+    #dataset = load_dataset("HuggingFaceFW/fineweb-edu", split="train", name="sample-10BT")
     #dataset = load_dataset("roneneldan/TinyStories", split="train")
+    dataset = load_dataset("haukur/enwik9", split="train")
     old_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
 
     # Create the dataset, and process the full file. 
@@ -52,6 +53,6 @@ if __name__ == '__main__':
     training_corpus = get_training_corpus(dataset)
 
     # Train the new tokenizer
-    tokenizer = old_tokenizer.train_new_from_iterator(training_corpus, 16000)
-    tokenizer.save_pretrained("/home/bbadger/Desktop/tokenizer_tinystories_16k")
+    tokenizer = old_tokenizer.train_new_from_iterator(training_corpus, 8000)
+    tokenizer.save_pretrained("/home/bbadger/Desktop/tokenizer_enwik9_8k")
     print ("Tokenizer saved")
