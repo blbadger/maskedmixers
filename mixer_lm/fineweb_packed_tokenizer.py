@@ -7,21 +7,44 @@ import shutil
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_enwik9_8k")
 tokenizer.pad_token = tokenizer.eos_token
 
-
-def packed_tokenization(example, n_ctx=512):
-    tokens = tokenizer.encode_plus(
+all_tokens = torch.tensor([])
+def all_packed_tokenization(example, n_ctx=512):
+	tokens = tokenizer.encode_plus(
 			example['text'],
 			add_special_tokens=False,
 			return_tensors='pt',
 			truncation=False,
 			padding=False,
 		).input_ids
-    tokens = torch.flatten(tokens, start_dim=0)
-    batch_size = len(tokens) // n_ctx
-    length = n_ctx * batch_size
-    #tokens = tokenizer.pad(tokens, padding='max_length', max_length=length, padding_side='right')
-    tokens = tokens[:length].reshape(batch_size, n_ctx)
-    return {'input_ids': tokens}
+
+	tokens = torch.flatten(tokens, start_dim=0)
+	global all_tokens
+	all_tokens = torch.cat(previous_tokens, tokens, dim=0)
+	
+	if len(all_tokens) > n_ctx:
+		batch_size = len(tokens) // n_ctx
+		length = n_ctx * batch_size
+		tokens = all_tokens[:length].reshape(batch_size, n_ctx)
+		all_tokens = all_tokens[length:]
+		return {'input_ids': tokens}
+	else:
+		return {'input_ids': None}
+	
+
+def packed_tokenization(example, n_ctx=512):
+	tokens = tokenizer.encode_plus(
+			example['text'],
+			add_special_tokens=False,
+			return_tensors='pt',
+			truncation=False,
+			padding=False,
+		).input_ids
+	tokens = torch.flatten(tokens, start_dim=0)
+	batch_size = len(tokens) // n_ctx
+	length = n_ctx * batch_size
+	#tokens = tokenizer.pad(tokens, padding='max_length', max_length=length, padding_side='right')
+	tokens = tokens[:length].reshape(batch_size, n_ctx)
+	return {'input_ids': tokens}
 
 def tokenization(example, n_ctx=512):
 	tokens = tokenizer.batch_encode_plus(

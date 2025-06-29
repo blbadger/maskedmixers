@@ -27,10 +27,11 @@ class LinearBlock(nn.Module):
 
         # for CLM training, apply lower triangular mask to convolution weights
         if self.clm_mask:
+            og_dtype = self.conv.weight.dtype
             rearranged_shape = rearrange(self.conv.weight, 'f d p -> f (d p)').shape
             mask = torch.tril(torch.ones(rearranged_shape)).to(device)
             applied_mask = rearrange(self.conv.weight, 'f d p -> f (d p)') * mask
-            self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1)
+            self.conv.weight.data = rearrange(applied_mask, 'f (d p) -> f d p', p=1).to(og_dtype)
 
         residual = x
         x = self.conv(x) + residual
@@ -52,7 +53,7 @@ class LinearMixer(nn.Module):
         self.lm_head = nn.Linear(dim, n_vocab, bias=False)
         self.mse_loss = mse_loss
         self.cel = nn.CrossEntropyLoss(reduction='none')
-        self.mse = nn.MSELoss(reduction='none')
+        self.mse = nn.MSELoss()
 
     def forward(self, input_ids, labels=None):
         x = input_ids
@@ -69,7 +70,6 @@ class LinearMixer(nn.Module):
             shift_labels, shift_logits = labels, output
             shift_logits = output[..., :-1].contiguous()
             shift_labels = labels[..., 1:].contiguous()
-<<<<<<< HEAD
             if not self.mse_loss:
                 loss = self.cel(shift_logits, shift_labels)
             else:
@@ -77,23 +77,13 @@ class LinearMixer(nn.Module):
                 one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2) * 1000
                 converted_labels = torch.tensor(one_hots, requires_grad=False, dtype=torch.double)
                 loss = self.mse(shift_logits, converted_labels)
-=======
-            loss = self.cel(shift_logits, shift_labels)
-            #one_hots = torch.nn.functional.one_hot(shift_labels, num_classes=len(tokenizer)).transpose(1,2) 
-            #converted_labels = torch.tensor(one_hots, requires_grad=False, dtype=torch.float)
-            #loss = self.mse(shift_logits, converted_labels)
->>>>>>> 942bf1e (debugged multiheaded mixer causal language mask)
             return loss, output, x_prelim
         else:
             return x
 
-<<<<<<< HEAD
-tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/Desktop/tiny_token_4k/tokenizer.json")
-# tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_tinystories_16k")
-=======
+
 tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/experiments/tiny_token_4k/tokenizer.json")
 #tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_tinystories_16k")
->>>>>>> 942bf1e (debugged multiheaded mixer causal language mask)
 #tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = 2
 print (tokenizer.eos_token)
@@ -103,17 +93,11 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 tokenized_length = 2
 
 if __name__ == '__main__':
-<<<<<<< HEAD
     dims, losses = [], []
     # for dim in range(1, 2000, 100):
     dim = 128
     dims.append(dim)
-    model = LinearMixer(n_vocab, dim, 1, mse_loss=True).double()
-=======
-    dim = 100
-    model = LinearMixer(n_vocab, dim, 1).float()
->>>>>>> 942bf1e (debugged multiheaded mixer causal language mask)
-    print (model)
+    model = LinearMixer(n_vocab, dim, 1, mse_loss=True).to(torch.double).to(device)
 
     # cached dataset
     train_text = load_dataset("roneneldan/TinyStories", split="train")
@@ -132,10 +116,6 @@ if __name__ == '__main__':
                 output += list(input_data[i])
         return output
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 942bf1e (debugged multiheaded mixer causal language mask)
     def batch_tokenize_input(train_text, test_text, length=2000, batch_size=1024):
         train_data, test_data = [], []
         max_length = tokenized_length
@@ -191,7 +171,7 @@ if __name__ == '__main__':
         if not isinstance(train_data, list):
             train_batch = train_data.unsqueeze(0).to('cuda')
         else:
-            train_batch = torch.stack(train_data[0:1], dim=0).to('cuda')
+            train_batch = torch.stack(train_data[0:10], dim=0).to('cuda')
         print (train_batch.shape)
         loss, output, X = model(train_batch, labels=train_batch)
         print (f"Starting loss: {loss.item()}")
@@ -212,37 +192,26 @@ if __name__ == '__main__':
         print (f"Ending loss: {loss.item()}")
         return loss.item()
 
-<<<<<<< HEAD
-    def newton_iterations(model, train_batch, loss_constant=60.):
-        train_batch = torch.stack(train_data[0:1], dim=0).to('cuda')
-        for i in range(50):
-                model.zero_grad()
-                loss, output, _ = model(train_batch, labels=train_batch)
-=======
+
     def newton_iterations(model, train_batch, loss_constant=0.05):
         train_batch = torch.stack(train_data[0:10], dim=0).to('cuda')
         for i in range(3):
                 #model.zero_grad()
                 loss, output, _ = model(train_batch, labels=train_batch)
-                loss -= loss_constant # subtract suspected irreducible loss so root exists
->>>>>>> 942bf1e (debugged multiheaded mixer causal language mask)
                 print (f"Starting loss: {(loss)}")
                 loss -= loss_constant # subtract suspected irreducible loss so root exists
                 loss.backward()
-<<<<<<< HEAD
                 print (torch.norm(model.lm_head.weight.grad))
+                # print (f"Starting loss: {(loss)}")
+                loss = torch.mean(loss[0, :3, :3])
+                loss -= loss_constant # subtract suspected irreducible loss so root exists
+                loss.backward()
                 loss_term = torch.pinverse(model.lm_head.weight.grad) * loss 
-                print (torch.norm(loss_term))
                 model.lm_head.weight = torch.nn.Parameter(model.lm_head.weight - loss_term.T)
-=======
-                print (model.lm_head.weight.grad, torch.norm(model.lm_head.weight.grad))
-                loss_term = torch.pinverse(model.lm_head.weight.grad) * loss # replace with jacobian on lm_head wrt. output element losses
-                print (torch.norm(loss_term))
-                model.lm_head.weight = torch.nn.Parameter(model.lm_head.weight - loss_term.T);# print (model.lm_head.weight.shape)
->>>>>>> 942bf1e (debugged multiheaded mixer causal language mask)
                 with torch.no_grad(): 
                         loss, output, _ = model(train_batch, labels=train_batch)
-                        print (f"Ending loss: {loss-loss_constant} \n")
+                        print (torch.mean(loss[0, :3, :3]))
+                        # print (f"Ending loss: {loss-loss_constant} \n")
         return 
 
     def newton_components(model, train_data, loss_constant=0.01):
@@ -253,9 +222,9 @@ if __name__ == '__main__':
             loss = loss[0] - loss_constant # subtract suspected irreducible loss so root exists
             loss_terms = []
             print (loss.shape)
-            for j in range(100):
+            for j in range(10):
                 for k in range(10):
-                    print (torch.sum(loss[:10, :10]))
+                    print (torch.sum(loss[:50, :10]))
                     loss[k, j].backward(retain_graph=True)
                     loss_term = torch.pinverse(model.lm_head.weight.grad) * loss[k, j]
                     loss_terms.append(loss_term)
@@ -318,9 +287,9 @@ if __name__ == '__main__':
     
     # losses.append(loss)
     print ('dims = ', dims, '\n', 'losses = ', losses)
-    # loss = normal_solve(model, train_data)
+    loss = normal_solve(model, train_data)
     # newton_iterations(model, train_data)
-    newton_components(model, train_data)
+    # newton_components(model, train_data)
     # newton_components_recalculated(model, train_data)
     # grad_descent(model, train_data)
 
