@@ -19,16 +19,15 @@ def all_packed_tokenization(example, n_ctx=512):
 
 	tokens = torch.flatten(tokens, start_dim=0)
 	global all_tokens
-	all_tokens = torch.cat(previous_tokens, tokens, dim=0)
-	
-	if len(all_tokens) > n_ctx:
-		batch_size = len(tokens) // n_ctx
+	all_tokens = torch.cat((all_tokens, tokens), dim=0)
+	if all_tokens.shape[0] > n_ctx:
+		batch_size = len(all_tokens) // n_ctx
 		length = n_ctx * batch_size
 		tokens = all_tokens[:length].reshape(batch_size, n_ctx)
 		all_tokens = all_tokens[length:]
-		return {'input_ids': tokens}
+		return {'input_ids': tokens.to(torch.long)}
 	else:
-		return {'input_ids': None}
+		return {'input_ids': []}
 	
 
 def packed_tokenization(example, n_ctx=512):
@@ -75,15 +74,15 @@ def map_dataset(train_path, test_path, split_index=50000, packed=False):
 	
 	if packed:
 		batch = False
-		tokenize = packed_tokenization
+		tokenize = all_packed_tokenization
 	else:
 		batch = True
 		tokenize = tokenization
 
 	train_dataset = train_text.map(tokenize, batched=batch)
-	test_dataset = test_text.map(tokenize, batched=batch)
+	#test_dataset = test_text.map(tokenize, batched=batch)
 	train_dataset.save_to_disk(train_path)
-	test_dataset.save_to_disk(test_path)
+	#test_dataset.save_to_disk(test_path)
 	print ('Datasets saved to disk')
 	return
 
@@ -104,15 +103,15 @@ if __name__ == '__main__':
 	packed=True
 	map_dataset(train_path, test_path, packed=packed)
 	train_dataset = load_from_disk(train_path)
-	test_dataset = load_from_disk(test_path)
+	#test_dataset = load_from_disk(test_path)
 	if packed:
 		train_dataset = train_dataset.filter(lambda x: len(x['input_ids']) > 0)
-		test_dataset = test_dataset.filter(lambda x: len(x['input_ids']) > 0 )
-		print (test_dataset[0]['input_ids'])
-		test_dataset = test_dataset.map(debatch, batched=True, batch_size=1)
-		print (test_dataset[0])
-		test_dataset.save_to_disk(test_path+'-debatched')
-		shutil.rmtree(test_path)
+		#test_dataset = test_dataset.filter(lambda x: len(x['input_ids']) > 0 )
+		print (train_dataset[0]['input_ids'])
+		#test_dataset = test_dataset.map(debatch, batched=True, batch_size=1)
+		#print (test_dataset[0])
+		#test_dataset.save_to_disk(test_path+'-debatched')
+		#shutil.rmtree(test_path)
 		train_dataset = train_dataset.map(debatch, batched=True, batch_size=1)
 		print (train_dataset[0])
 		train_dataset.save_to_disk(train_path+'-debatched')

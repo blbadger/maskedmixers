@@ -251,18 +251,18 @@ tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
 print ('Vocab size: ', n_vocab)
 
-tokenized_length = 32
+tokenized_length = 512
 dim = 512
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # mixer model initialization
-model = MultiHeadedMixer(n_vocab, dim, 16, length=tokenized_length, heads=32).float().to(device)
+#model = MultiHeadedMixer(n_vocab, dim, 16, length=tokenized_length, heads=32).float().to(device)
 #model = LanguageMixer(n_vocab, dim, 1).float().float().to(device)
-#model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
+model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
 
-#count_parameters(model)
-train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c32-packed-debatched"
-test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test-c32-packed-debatched"
+count_parameters(model)
+train_path = "/home/bbadger/Desktop/enwik9-tokenized-train-c512-lpad-8k-debatched"
+test_path = "/home/bbadger/Desktop/enwik9-tokenized-train-c512-lpad-8k-debatched"
 
 def tokenization(example):
 	tokens = tokenizer.batch_encode_plus(
@@ -300,16 +300,16 @@ mlflow.end_run()
 #print (train_dataset[0])
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=3,
-	per_device_train_batch_size=128,
-	per_device_eval_batch_size=128,
+	per_device_train_batch_size=64,
+	per_device_eval_batch_size=64,
 	warmup_steps=500,
 	eval_steps=4000,
-	save_steps=8000,
+	save_steps=800000,
 	gradient_accumulation_steps=1,
 	learning_rate=5e-4,
 	fp16=True,
 	eval_strategy='steps',
-	output_dir='~/Desktop/fineweb_linear_mixer_1024_n16_h32_c32',
+	output_dir='~/Desktop/enwik9_autoencoder_n8_c512',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	save_safetensors=True,
