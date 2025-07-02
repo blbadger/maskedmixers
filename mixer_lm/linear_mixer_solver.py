@@ -82,7 +82,7 @@ class LinearMixer(nn.Module):
             return x
 
 
-tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/experiments/tiny_token_4k/tokenizer.json")
+tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/bbadger/Desktop/tinystories_training/tiny_token_4k/tokenizer.json")
 #tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_tinystories_16k")
 #tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = 2
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # for dim in range(1, 2000, 100):
     dim = 128
     dims.append(dim)
-    model = LinearMixer(n_vocab, dim, 1, mse_loss=True).to(torch.double).to(device)
+    model = LinearMixer(n_vocab, dim, 1, mse_loss=True).to(torch.complex).to(device)
 
     # cached dataset
     train_text = load_dataset("roneneldan/TinyStories", split="train")
@@ -191,7 +191,6 @@ if __name__ == '__main__':
         loss, output, X = model(train_batch, labels=train_batch) 
         print (f"Ending loss: {loss.item()}")
         return loss.item()
-
 
     def newton_iterations(model, train_batch, loss_constant=0.05):
         train_batch = torch.stack(train_data[0:10], dim=0).to('cuda')

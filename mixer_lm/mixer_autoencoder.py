@@ -56,7 +56,7 @@ class MixerHead(nn.Module):
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length):
+	def __init__(self, dim, length, causal=True):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
@@ -65,14 +65,16 @@ class MixerBlock(nn.Module):
 		# self.mixerhead = MixerHead(1024, 512, 512, 2)
 		self.patch_ff = FeedForward(dim)
 		self.conv = nn.Conv1d(length, length, 1, padding='same')
+		self.causal = causal
 
 	def forward(self, x: torch.tensor):
 		if x.dim() > 3:
 			x = rearrange(x, 'b p t f -> (b p) t f')
 
-		# for CLM training, apply lower triangular mask to convolution weights
-		masked_conv = torch.tril(rearrange(self.conv.weight, 'f d p -> p f d'))
-		self.conv.weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
+		if self.causal:
+			# for CLM training, apply lower triangular mask to convolution weights
+			masked_conv = torch.tril(rearrange(self.conv.weight, 'f d p -> p f d'))
+			self.conv.weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
 
 		residual = x
 		x = self.seq_layernorm(x)
@@ -86,7 +88,7 @@ class MixerBlock(nn.Module):
 
 class AutoencodingMixer(nn.Module):
 
-	def __init__(self, n_vocab, dim, depth, length):
+	def __init__(self, n_vocab, dim, depth, length, compression=1):
 		super().__init__()
 		self.wte = nn.Embedding(n_vocab, dim)
 		self.encoderblocks = nn.ModuleList(
@@ -107,6 +109,10 @@ class AutoencodingMixer(nn.Module):
 		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 		self.cel = nn.CrossEntropyLoss()
 		self.tokenized_length = length
+		self.compression = compression > 1
+		if self.compression
+			self.down = nn.Linear(dim, dim//compression)
+			self.up = nn.Linear(dim//compression, dim)
 
 	def forward(self, input_ids, labels=None, **kwargs):
 		x = input_ids
@@ -116,6 +122,9 @@ class AutoencodingMixer(nn.Module):
 			x = block(x)
 
 		encoder_embedding = x[:, -1, :].unsqueeze(1) # dim=[batch, token, hidden]
+		if self.compression:
+			encoder_embedding = self.down(encoder_embedding)
+			encoder_embedding = self.up(encoder_embedding)
 		encoder_embedding = encoder_embedding.repeat(1, self.tokenized_length, 1)
 		x = encoder_embedding
 
@@ -127,6 +136,75 @@ class AutoencodingMixer(nn.Module):
 			labels = rearrange(labels, 'b p t -> b (p t)')
 		output = rearrange(output, 'b t e -> b e t')
 		loss = self.cel(output, labels)
+		return loss, output
+
+def MemoryMixer(nn.Module):
+
+	"""
+	Approach: add encoded hidden layer to the decoder as the first token's wte
+	"""
+
+	def __init__(self, n_vocab, encoder_dim, dim, depth, length, compression=4):
+		super().__init__()
+		self.wte = nn.Embedding(n_vocab, dim)
+		self.encoderblocks = nn.ModuleList(
+				[MixerBlock(
+					dim = encoder_dim,
+					length = length,
+					causal=False
+					)
+				for i in range(depth)]
+			).to(device)
+	
+		self.decoderblocks = nn.ModuleList(
+				[MixerBlock(
+					dim = dim,
+					length = length+1,
+					causal=True
+					)
+				for i in range(depth)]
+			).to(device)
+		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
+		self.cel = nn.CrossEntropyLoss()
+		self.tokenized_length = length
+		self.compression = compression > 1
+		if self.compression
+			self.down = nn.Linear(dim, dim//compression)
+			self.up = nn.Linear(dim//compression, dim)
+
+		self.decoder_proj = None
+		if encoder_dim != dim:
+			self.decoder_proj = nn.Linear(encoder_dim, dim)
+
+	def forward(self, input_ids, labels=None, **kwargs):
+		x = input_ids
+		x = x.to(device)
+		wte_embeds = self.wte(x)
+		x = wte_embeds
+		for block in self.encoderblocks:
+			x = block(x)
+
+		encoder_embedding = x[:, -1, :].unsqueeze(1) # dim=[batch, token, hidden]
+		if self.compression:
+			encoder_embedding = self.down(encoder_embedding)
+			encoder_embedding = self.up(encoder_embedding)
+
+		if self.decoder_proj:
+			encoder_embedding = self.decoder_proj(encoder_embedding)
+
+		x = torch.cat(encoder_embedding, wte_embeds, dim=1) # concatenation on token dim
+
+		for block in self.decoderblocks:
+			x = block(x)
+		
+		output = self.lm_head(x)
+		if labels.dim() > 2:
+			labels = rearrange(labels, 'b p t -> b (p t)')
+		output = rearrange(output, 'b t e -> b e t')
+		shift_labels, shift_logits = labels, output
+        shift_logits = output[..., :-1].contiguous()
+        shift_labels = labels[..., 1:].contiguous()
+		loss = self.cel(shift_output, labels)
 		return loss, output
 
 
