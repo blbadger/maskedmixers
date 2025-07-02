@@ -125,7 +125,7 @@ class AutoencodingMixer(nn.Module):
 		if self.compression:
 			encoder_embedding = self.down(encoder_embedding)
 			encoder_embedding = self.up(encoder_embedding)
-		encoder_embedding = self.up(self.norm(self.down(encoder_embedding)))
+
 		encoder_embedding = encoder_embedding.repeat(1, self.tokenized_length, 1)
 		x = encoder_embedding
 
@@ -141,9 +141,90 @@ class AutoencodingMixer(nn.Module):
 
 class MemoryMixer(nn.Module):
 
-	"""
-	Approach: add encoded hidden layer to the decoder as the first token's wte
-	"""
+	def __init__(self, n_vocab, encoder_dim, dim, depth, length, compression=4, combination_dim='token'):
+		super().__init__()
+		self.wte = nn.Embedding(n_vocab, encoder_dim)
+		self.decoder_wte = nn.Embedding(n_vocab, dim)
+		self.encoderblocks = nn.ModuleList(
+				[MixerBlock(
+					dim = encoder_dim,
+					length = length,
+					causal=False
+					)
+				for i in range(depth)]
+			).to(device)
+		self.combination_dim = combination_dim
+		if combination_dim == 'token':
+			self.decoderblocks = nn.ModuleList(
+					[MixerBlock(
+						dim = dim,
+						length = length+1,
+						causal=True
+						)
+					for i in range(depth)]
+				).to(device)
+			self.lm_head = nn.Linear(dim, n_vocab, bias=False)
+
+		elif combination_dim == 'embedding':
+			self.decoderblocks = nn.ModuleList(
+					[MixerBlock(
+						dim = dim + encoder_dim,
+						length = length,
+						causal=True
+						)
+					for i in range(depth)]
+				).to(device)
+			self.lm_head = nn.Linear(dim + encoder_dim, n_vocab, bias=False)
+
+		self.cel = nn.CrossEntropyLoss()
+		self.tokenized_length = length
+		self.compression = compression > 1
+		if self.compression:
+			self.down = nn.Linear(encoder_dim, encoder_dim//compression)
+			self.up = nn.Linear(encoder_dim//compression, encoder_dim)
+
+		self.decoder_proj = None
+		if encoder_dim != dim:
+			self.decoder_proj = nn.Linear(encoder_dim, dim)
+
+	def forward(self, input_ids, labels=None, **kwargs):
+		input_ids = input_ids.to(device)
+		wte_embeds = self.wte(input_ids)
+		x = wte_embeds
+		for block in self.encoderblocks:
+			x = block(x)
+
+		encoder_embedding = x[:, -1, :].unsqueeze(1) # dim=[batch, token, hidden]
+		if self.compression:
+			encoder_embedding = self.down(encoder_embedding)
+			encoder_embedding = self.up(encoder_embedding)
+
+		if self.decoder_proj:
+			encoder_embedding = self.decoder_proj(encoder_embedding)
+
+		decoder_embeds = self.decoder_wte(input_ids)
+		if self.combination_dim == 'token':
+			x = torch.cat((encoder_embedding, decoder_embeds), dim=1) # concatenation on token dim
+
+		elif self.combination_dim == 'embedding':
+			repeat_embedding = encoder_embedding.repeat(1, self.tokenized_length, 1)
+			x = torch.cat((repeat_embedding, decoder_embeds), dim=2) # concatenation on hidden dim
+
+		for block in self.decoderblocks:
+			x = block(x)
+		
+		output = self.lm_head(x)
+		if labels.dim() > 2:
+			labels = rearrange(labels, 'b p t -> b (p t)')
+		output = rearrange(output, 'b t e -> b e t')
+		shift_labels, shift_logits = labels, output
+		shift_logits = output[..., 1:-1].contiguous() # first 'token' is encoding
+		shift_labels = labels[..., 1:].contiguous() 
+		loss = self.cel(shift_logits, shift_labels)
+		return loss, output
+
+
+class ProjMemoryMixer(nn.Module):
 
 	def __init__(self, n_vocab, encoder_dim, dim, depth, length, compression=4):
 		super().__init__()
@@ -174,9 +255,7 @@ class MemoryMixer(nn.Module):
 			self.down = nn.Linear(encoder_dim, encoder_dim//compression)
 			self.up = nn.Linear(encoder_dim//compression, encoder_dim)
 
-		self.decoder_proj = None
-		if encoder_dim != dim:
-			self.decoder_proj = nn.Linear(encoder_dim, dim)
+		self.decoder_proj = nn.Linear(encoder_dim, dim)
 
 	def forward(self, input_ids, labels=None, **kwargs):
 		input_ids = input_ids.to(device)
@@ -192,9 +271,10 @@ class MemoryMixer(nn.Module):
 
 		if self.decoder_proj:
 			encoder_embedding = self.decoder_proj(encoder_embedding)
+		repeated_embeddings = encoder_embedding.repeat(1, self.tokenized_length, 1)
 
 		decoder_embeds = self.decoder_wte(input_ids)
-		x = torch.cat((encoder_embedding, decoder_embeds), dim=1) # concatenation on token dim
+		x = decoder_embeds + repeated_embeddings # linear combination of h and token wtes
 
 		for block in self.decoderblocks:
 			x = block(x)
