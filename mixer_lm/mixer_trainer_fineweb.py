@@ -259,7 +259,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #model = MultiHeadedMixer(n_vocab, dim, 16, length=tokenized_length, heads=32).float().to(device)
 #model = LanguageMixer(n_vocab, dim, 1).float().to(device)
 #model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
-model = MemoryMixer(n_vocab, dim//2, dim, 8, tokenized_length).float()
+model = MemoryMixer(n_vocab, dim//4, dim, 8, tokenized_length).float()
 
 count_parameters(model)
 train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
