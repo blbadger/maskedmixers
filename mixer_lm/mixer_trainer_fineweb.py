@@ -9,7 +9,7 @@ import datasets
 from datasets import load_dataset, load_from_disk
 
 from mixer_multiconv import MultiHeadedMixer
-from mixer_autoencoder import AutoencodingMixer
+from mixer_autoencoder import AutoencodingMixer, MemoryMixer
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -258,7 +258,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # mixer model initialization
 #model = MultiHeadedMixer(n_vocab, dim, 16, length=tokenized_length, heads=32).float().to(device)
 #model = LanguageMixer(n_vocab, dim, 1).float().to(device)
-model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
+#model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
+model = MemoryMixer(n_vocab, dim//2, dim, 8, tokenized_length).float()
 
 count_parameters(model)
 train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
@@ -309,7 +310,7 @@ training_arguments = transformers.TrainingArguments(
 	learning_rate=5e-4,
 	fp16=True,
 	eval_strategy='steps',
-	output_dir='~/Desktop/autoencoding_mixer_finemath_1024c4_n8_c512_b32',
+	output_dir='~/Desktop/finemath_memory_mixer_e512_d1024_c512_b32',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	save_safetensors=True,

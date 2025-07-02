@@ -110,7 +110,7 @@ class AutoencodingMixer(nn.Module):
 		self.cel = nn.CrossEntropyLoss()
 		self.tokenized_length = length
 		self.compression = compression > 1
-		if self.compression
+		if self.compression:
 			self.down = nn.Linear(dim, dim//compression)
 			self.up = nn.Linear(dim//compression, dim)
 
@@ -139,7 +139,7 @@ class AutoencodingMixer(nn.Module):
 		loss = self.cel(output, labels)
 		return loss, output
 
-def MemoryMixer(nn.Module):
+class MemoryMixer(nn.Module):
 
 	"""
 	Approach: add encoded hidden layer to the decoder as the first token's wte
@@ -147,7 +147,8 @@ def MemoryMixer(nn.Module):
 
 	def __init__(self, n_vocab, encoder_dim, dim, depth, length, compression=4):
 		super().__init__()
-		self.wte = nn.Embedding(n_vocab, dim)
+		self.wte = nn.Embedding(n_vocab, encoder_dim)
+		self.decoder_wte = nn.Embedding(n_vocab, dim)
 		self.encoderblocks = nn.ModuleList(
 				[MixerBlock(
 					dim = encoder_dim,
@@ -169,18 +170,17 @@ def MemoryMixer(nn.Module):
 		self.cel = nn.CrossEntropyLoss()
 		self.tokenized_length = length
 		self.compression = compression > 1
-		if self.compression
-			self.down = nn.Linear(dim, dim//compression)
-			self.up = nn.Linear(dim//compression, dim)
+		if self.compression:
+			self.down = nn.Linear(encoder_dim, encoder_dim//compression)
+			self.up = nn.Linear(encoder_dim//compression, encoder_dim)
 
 		self.decoder_proj = None
 		if encoder_dim != dim:
 			self.decoder_proj = nn.Linear(encoder_dim, dim)
 
 	def forward(self, input_ids, labels=None, **kwargs):
-		x = input_ids
-		x = x.to(device)
-		wte_embeds = self.wte(x)
+		input_ids = input_ids.to(device)
+		wte_embeds = self.wte(input_ids)
 		x = wte_embeds
 		for block in self.encoderblocks:
 			x = block(x)
@@ -193,7 +193,8 @@ def MemoryMixer(nn.Module):
 		if self.decoder_proj:
 			encoder_embedding = self.decoder_proj(encoder_embedding)
 
-		x = torch.cat(encoder_embedding, wte_embeds, dim=1) # concatenation on token dim
+		decoder_embeds = self.decoder_wte(input_ids)
+		x = torch.cat((encoder_embedding, decoder_embeds), dim=1) # concatenation on token dim
 
 		for block in self.decoderblocks:
 			x = block(x)
@@ -205,7 +206,7 @@ def MemoryMixer(nn.Module):
 		shift_labels, shift_logits = labels, output
 		shift_logits = output[..., 1:-1].contiguous() # first 'token' is encoding
 		shift_labels = labels[..., 1:].contiguous() 
-		loss = self.cel(shift_output, labels)
+		loss = self.cel(shift_logits, shift_labels)
 		return loss, output
 
 
