@@ -218,7 +218,10 @@ class MemoryMixer(nn.Module):
 			labels = rearrange(labels, 'b p t -> b (p t)')
 		output = rearrange(output, 'b t e -> b e t')
 		shift_labels, shift_logits = labels, output
-		shift_logits = output[..., 1:-1].contiguous() # first 'token' is encoding
+		if self.combination_dim == 'token':
+			shift_logits = output[..., 1:-1].contiguous() # first 'token' is encoding
+		else:
+			shift_logits = output[..., :-1].contiguous()
 		shift_labels = labels[..., 1:].contiguous() 
 		loss = self.cel(shift_logits, shift_labels)
 		return loss, output
