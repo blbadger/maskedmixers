@@ -153,6 +153,8 @@ class MemoryMixer(nn.Module):
 					)
 				for i in range(depth)]
 			).to(device)
+
+		self.decoder_proj = None
 		self.combination_dim = combination_dim
 		if combination_dim == 'token':
 			self.decoderblocks = nn.ModuleList(
@@ -164,6 +166,8 @@ class MemoryMixer(nn.Module):
 					for i in range(depth)]
 				).to(device)
 			self.lm_head = nn.Linear(dim, n_vocab, bias=False)
+			if encoder_dim != dim:
+				self.decoder_proj = nn.Linear(encoder_dim, dim)
 
 		elif combination_dim == 'embedding':
 			self.decoderblocks = nn.ModuleList(
@@ -182,10 +186,7 @@ class MemoryMixer(nn.Module):
 		if self.compression:
 			self.down = nn.Linear(encoder_dim, encoder_dim//compression)
 			self.up = nn.Linear(encoder_dim//compression, encoder_dim)
-
-		self.decoder_proj = None
-		if encoder_dim != dim:
-			self.decoder_proj = nn.Linear(encoder_dim, dim)
+		
 
 	def forward(self, input_ids, labels=None, **kwargs):
 		input_ids = input_ids.to(device)
@@ -199,11 +200,10 @@ class MemoryMixer(nn.Module):
 			encoder_embedding = self.down(encoder_embedding)
 			encoder_embedding = self.up(encoder_embedding)
 
-		if self.decoder_proj:
-			encoder_embedding = self.decoder_proj(encoder_embedding)
-
 		decoder_embeds = self.decoder_wte(input_ids)
 		if self.combination_dim == 'token':
+			if self.decoder_proj:
+				encoder_embedding = self.decoder_proj(encoder_embedding)
 			x = torch.cat((encoder_embedding, decoder_embeds), dim=1) # concatenation on token dim
 
 		elif self.combination_dim == 'embedding':
