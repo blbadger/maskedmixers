@@ -125,6 +125,7 @@ class AutoencodingMixer(nn.Module):
 		if self.compression:
 			encoder_embedding = self.down(encoder_embedding)
 			encoder_embedding = self.up(encoder_embedding)
+		encoder_embedding = self.up(self.norm(self.down(encoder_embedding)))
 		encoder_embedding = encoder_embedding.repeat(1, self.tokenized_length, 1)
 		x = encoder_embedding
 

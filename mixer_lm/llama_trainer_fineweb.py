@@ -22,7 +22,7 @@ vocab_size = 8000
 llama_config_kwargs = {
     'hidden_size': dim,
     'intermediate_size': 4*dim,
-    'num_hidden_layers': 8,
+    'num_hidden_layers': 1,
     'num_attention_heads': 4,
     'vocab_size': vocab_size
 }
@@ -145,8 +145,8 @@ def tokenize_input(train_text, test_text):
 	return train_data, test_data
 
 count_parameters(model)
-train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
-test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
+train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c128-packed-debatched"
+test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test-c128-packed-debatched"
 
 #map_dataset(train_path, test_path)
 datasets.config.IN_MEMORY_MAX_SIZE = 35e9
@@ -190,15 +190,15 @@ def reformat_inputs(train_data, test_data):
 mlflow.end_run()
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=3,
-	per_device_train_batch_size=16,
-	per_device_eval_batch_size=16,
+	per_device_train_batch_size=128,
+	per_device_eval_batch_size=128,
 	warmup_steps=500,
 	eval_steps=4000,
 	save_steps=4000,
 	learning_rate=2e-4, 
 	fp16=True, 
-	evaluation_strategy='steps',
-	output_dir='~/Desktop/finemath_llama_autoencoder_512_n8',
+	eval_strategy='steps',
+	output_dir='~/Desktop/fineweb_llama_512_n1_c128_b32',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	max_steps=200000
