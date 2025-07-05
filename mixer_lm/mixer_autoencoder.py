@@ -245,7 +245,7 @@ class ProjMemoryMixer(nn.Module):
 		self.decoderblocks = nn.ModuleList(
 				[MixerBlock(
 					dim = dim,
-					length = length+1,
+					length = length,
 					causal=True
 					)
 				for i in range(depth)]
