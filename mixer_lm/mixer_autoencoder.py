@@ -172,13 +172,13 @@ class MemoryMixer(nn.Module):
 		elif combination_dim == 'embedding':
 			self.decoderblocks = nn.ModuleList(
 					[MixerBlock(
-						dim = dim + encoder_dim,
+						dim = dim + encoder_dim//compression,
 						length = length,
 						causal=True
 						)
 					for i in range(depth)]
 				).to(device)
-			self.lm_head = nn.Linear(dim + encoder_dim, n_vocab, bias=False)
+			self.lm_head = nn.Linear(dim + encoder_dim//compression, n_vocab, bias=False)
 
 		self.cel = nn.CrossEntropyLoss()
 		self.tokenized_length = length
@@ -198,7 +198,7 @@ class MemoryMixer(nn.Module):
 		encoder_embedding = x[:, -1, :].unsqueeze(1) # dim=[batch, token, hidden]
 		if self.compression:
 			encoder_embedding = self.down(encoder_embedding)
-			encoder_embedding = self.up(encoder_embedding)
+			#encoder_embedding = self.up(encoder_embedding)
 
 		decoder_embeds = self.decoder_wte(input_ids)
 		if self.combination_dim == 'token':

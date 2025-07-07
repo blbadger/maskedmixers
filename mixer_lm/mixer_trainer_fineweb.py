@@ -9,7 +9,8 @@ import datasets
 from datasets import load_dataset, load_from_disk
 
 from mixer_multiconv import MultiHeadedMixer
-from mixer_autoencoder import AutoencodingMixer, MemoryMixer
+from mixer_autoencoder import AutoencodingMixer, MemoryMixer, ProjMemoryMixer
+from memory_transformer import MemoryTransformer
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -251,19 +252,20 @@ tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
 print ('Vocab size: ', n_vocab)
 
-tokenized_length = 512
-dim = 1024
+tokenized_length = 1024
+dim = 512
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # mixer model initialization
 #model = MultiHeadedMixer(n_vocab, dim, 16, length=tokenized_length, heads=32).float().to(device)
 #model = LanguageMixer(n_vocab, dim, 1).float().to(device)
 #model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
-model = MemoryMixer(n_vocab, dim//4, dim, 8, tokenized_length).float()
+#model = MemoryMixer(n_vocab, dim//4, dim - dim//16, 16, tokenized_length, combination_dim='embedding').float()
+model = MemoryTransformer(n_vocab, dim//2, dim-dim//8, 16, tokenized_length, combination_dim='embedding').float()
 
 count_parameters(model)
-train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
-test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
+train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c1024"
+test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test-c1024"
 
 def tokenization(example):
 	tokens = tokenizer.batch_encode_plus(
@@ -301,16 +303,16 @@ mlflow.end_run()
 #print (train_dataset[0])
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=3,
-	per_device_train_batch_size=32,
-	per_device_eval_batch_size=32,
+	per_device_train_batch_size=16,
+	per_device_eval_batch_size=16,
 	warmup_steps=500,
 	eval_steps=4000,
 	save_steps=8000,
 	gradient_accumulation_steps=1,
-	learning_rate=5e-4,
+	learning_rate=2e-4,
 	fp16=True,
 	eval_strategy='steps',
-	output_dir='~/Desktop/finemath_memory_mixer_e512_d1024_c512_b32',
+	output_dir='~/Desktop/fineweb_ememory_transformer_e256c4_d512_n16_c1024_b15',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	save_safetensors=True,
