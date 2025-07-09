@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # for dim in range(1, 2000, 100):
     dim = 128
     dims.append(dim)
-    model = LinearMixer(n_vocab, dim, 1, mse_loss=True).to(torch.complex).to(device)
+    model = LinearMixer(n_vocab, dim, 1, mse_loss=True).to(torch.double).to(device)
 
     # cached dataset
     train_text = load_dataset("roneneldan/TinyStories", split="train")
