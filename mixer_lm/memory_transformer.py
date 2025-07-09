@@ -55,13 +55,12 @@ class MemoryTransformer(nn.Module):
 			self.decoder_wte = nn.Embedding(n_vocab, dim)
 			self.lm_head = nn.Linear(dim + encoder_dim//compression, n_vocab, bias=False)
 
-		print (self.decoder)
 		self.cel = nn.CrossEntropyLoss()
 		self.tokenized_length = length
 		self.compression = compression > 1
 		if self.compression:
 			self.down = nn.Linear(encoder_dim, encoder_dim//compression)
-			#self.up = nn.Linear(encoder_dim//compression, encoder_dim)
+			self.up = nn.Linear(encoder_dim//compression, encoder_dim)
 		
 
 	def forward(self, input_ids, labels=None, attention_mask=None, **kwargs):
