@@ -1,3 +1,5 @@
+import os
+import shutil
 from prettytable import PrettyTable
 import torch
 from einops import rearrange
@@ -249,6 +251,7 @@ def count_parameters(model):
 
 tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_8k")
 tokenizer.pad_token = tokenizer.eos_token
+
 n_vocab = len(tokenizer)
 print ('Vocab size: ', n_vocab)
 
@@ -303,6 +306,8 @@ datasets.config.IN_MEMORY_MAX_SIZE = 50e9
 train_dataset = load_from_disk(train_path, keep_in_memory=None)
 test_dataset = load_from_disk(test_path, keep_in_memory=None)
 mlflow.end_run()
+
+output_dir = f'~/Desktop/fineweb_pmemory_transformer_e{encoder_dim}c{compression}_d{decoder_dim}_n{depth}_c{tokenized_length}_b16'
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=3,
 	per_device_train_batch_size=16,
@@ -314,13 +319,12 @@ training_arguments = transformers.TrainingArguments(
 	learning_rate=2e-4,
 	fp16=True,
 	eval_strategy='steps',
-	output_dir=f'~/Desktop/fineweb_pmemory_transformer_e{encoder_dim}c{compression}_d{decoder_dim}_n{depth}_c{tokenized_length}_b16',
+	output_dir=output_dir,
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	save_safetensors=True,
 	max_steps=200000
 )
-print ('training begun')
 
 trainer = transformers.Trainer(
 	model=model.to(device),
@@ -330,5 +334,12 @@ trainer = transformers.Trainer(
 	data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
 )
 
+# save driver snapshot
+code_path = os.path.abspath(__file__)
+if not os.path.isdir(output_dir):
+	os.mkdir(output_dir)
+shutil.copy(code_path, output_dir)
+
+print ('training begun')
 #trainer.train("/home/bbadger/Desktop/finemath_autoencoding_mixer_1024_n8_b16_c1024/checkpoint-8000")
 trainer.train()
