@@ -56,15 +56,17 @@ class MixerHead(nn.Module):
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length, causal=True):
+	def __init__(self, dim, length, causal=True, n_heads=1):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
 		self.dim = dim
 		self.length = length
-		# self.mixerhead = MixerHead(1024, 512, 512, 2)
 		self.patch_ff = FeedForward(dim)
-		self.conv = nn.Conv1d(length, length, 1, padding='same')
+		if n_heads > 1:
+			self.conv = MixerHead(dim, length, dim//heads, heads) # proj dim matches outer
+		else:
+			self.conv = nn.Conv1d(length, length, 1, padding='same')
 		self.causal = causal
 
 	def forward(self, x: torch.tensor):
@@ -101,6 +103,7 @@ class AutoencodingMixer(nn.Module):
 			[MixerBlock(
 				dim = dim,
 				length = length,
+				causal = True
 				)
 			for i in range(depth)]
 			).to(device)
@@ -108,7 +111,8 @@ class AutoencodingMixer(nn.Module):
 		self.decoderblocks = nn.ModuleList(
 			[MixerBlock(
 				dim = dim,
-				length = length
+				length = length, 
+				causal = True
 				)
 			for i in range(depth)]
 			)
@@ -232,7 +236,7 @@ class MemoryMixer(nn.Module):
 				[MixerBlock(
 					dim = encoder_dim,
 					length = length,
-					causal=False
+					causal=True
 					)
 				for i in range(depth)]
 			).to(device)
@@ -320,7 +324,7 @@ class ProjMemoryMixer(nn.Module):
 				[MixerBlock(
 					dim = encoder_dim,
 					length = length,
-					causal=False
+					causal=True
 					)
 				for i in range(depth)]
 			).to(device)
