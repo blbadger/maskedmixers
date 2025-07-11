@@ -11,6 +11,9 @@ from datasets import load_dataset, load_from_disk
 from mixer_multiconv import MultiHeadedMixer
 from mixer_autoencoder import AutoencodingMixer, MemoryMixer, ProjMemoryMixer
 from memory_transformer import MemoryTransformer
+import warnings
+
+warnings.filterwarnings(action='ignore')
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
@@ -261,7 +264,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #model = LanguageMixer(n_vocab, dim, 1).float().to(device)
 #model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
 #model = MemoryMixer(n_vocab, dim//4, dim - dim//16, 16, tokenized_length, combination_dim='embedding').float()
-model = MemoryTransformer(n_vocab, dim//2, dim-dim//8, 16, tokenized_length, combination_dim='embedding').float()
+model = MemoryTransformer(n_vocab, dim//2, dim, 16, tokenized_length, combination_dim='token').float()
 
 count_parameters(model)
 train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c1024"
@@ -312,7 +315,7 @@ training_arguments = transformers.TrainingArguments(
 	learning_rate=2e-4,
 	fp16=True,
 	eval_strategy='steps',
-	output_dir='~/Desktop/fineweb_ememory_transformer_e256c4_d512_n16_c1024_b15',
+	output_dir='~/Desktop/fineweb_tmemory_transformer_e256c4_d512_n16_c1024_b15_encaus',
 	optim='adamw_torch',
 	overwrite_output_dir=True,
 	save_safetensors=True,

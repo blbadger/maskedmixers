@@ -20,7 +20,7 @@ class MemoryTransformer(nn.Module):
 				[MixerBlock(
 					dim = encoder_dim,
 					length = length,
-					causal=False
+					causal=True
 					)
 				for i in range(depth)]
 			).to(device)
@@ -38,6 +38,7 @@ class MemoryTransformer(nn.Module):
 			}
 			decoder_configuration = LlamaConfig(**llama_config_kwargs)
 			self.decoder = LlamaModel(decoder_configuration)
+			self.decoder_wte = nn.Embedding(n_vocab, dim)
 			self.lm_head = nn.Linear(dim, n_vocab, bias=False)
 			if encoder_dim != dim:
 				self.decoder_proj = nn.Linear(encoder_dim, dim)
@@ -55,13 +56,12 @@ class MemoryTransformer(nn.Module):
 			self.decoder_wte = nn.Embedding(n_vocab, dim)
 			self.lm_head = nn.Linear(dim + encoder_dim//compression, n_vocab, bias=False)
 
-		print (self.decoder)
 		self.cel = nn.CrossEntropyLoss()
 		self.tokenized_length = length
 		self.compression = compression > 1
 		if self.compression:
 			self.down = nn.Linear(encoder_dim, encoder_dim//compression)
-			#self.up = nn.Linear(encoder_dim//compression, encoder_dim)
+			self.up = nn.Linear(encoder_dim//compression, encoder_dim)
 		
 
 	def forward(self, input_ids, labels=None, attention_mask=None, **kwargs):
@@ -74,17 +74,20 @@ class MemoryTransformer(nn.Module):
 		encoder_embedding = x[:, -1, :].unsqueeze(1) # dim=[batch, token, hidden]
 		if self.compression:
 			encoder_embedding = self.down(encoder_embedding)
-			#encoder_embedding = self.up(encoder_embedding)
+			if self.combination_dim == 'token':
+				encoder_embedding = self.up(encoder_embedding)
 		decoder_embeds = self.decoder_wte(input_ids)
 		if self.combination_dim == 'token':
 			if self.decoder_proj:
 				encoder_embedding = self.decoder_proj(encoder_embedding)
 			x = torch.cat((encoder_embedding, decoder_embeds), dim=1) # concatenation on token dim
+			if attention_mask is not None:
+				attention_mask = torch.cat((torch.ones(input_ids.shape[0], 1).to(device), attention_mask), dim=1)
 
 		elif self.combination_dim == 'embedding':
 			repeat_embedding = encoder_embedding.repeat(1, self.tokenized_length, 1)
 			x = torch.cat((repeat_embedding, decoder_embeds), dim=2) # concatenation on hidden dim
-		
+				
 		# feed pre-concatenated input embeddings to the transformer decoder
 		x = self.decoder(inputs_embeds=x, attention_mask=attention_mask)
 		output = self.lm_head(x.last_hidden_state)

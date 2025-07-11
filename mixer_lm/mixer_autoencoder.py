@@ -88,7 +88,7 @@ class MixerBlock(nn.Module):
 
 class AutoencodingMixer(nn.Module):
 
-	def __init__(self, n_vocab, dim, depth, length, compression=1):
+	def __init__(self, n_vocab, dim, depth, length, compression=4):
 		super().__init__()
 		self.wte = nn.Embedding(n_vocab, dim)
 		self.encoderblocks = nn.ModuleList(
