@@ -39,7 +39,7 @@ class MixerHead(nn.Module):
 	def forward(self, x: torch.tensor):
 
 		for i in range(len(self.convs)):
-			masked_conv = self.softmax(torch.tril(rearrange(self.convs[i].weight, 'f d p -> p f d')))
+			masked_conv = torch.tril(rearrange(self.convs[i].weight, 'f d p -> p f d'))
 			self.convs[i].weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
 
 		hidden_layer = []
