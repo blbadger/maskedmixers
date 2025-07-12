@@ -56,15 +56,17 @@ class MixerHead(nn.Module):
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length, causal=True):
+	def __init__(self, dim, length, causal=True, n_heads=1):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
 		self.dim = dim
 		self.length = length
-		# self.mixerhead = MixerHead(1024, 512, 512, 2)
 		self.patch_ff = FeedForward(dim)
-		self.conv = nn.Conv1d(length, length, 1, padding='same')
+		if n_heads > 1:
+			self.conv = MixerHead(dim, length, dim//heads, heads) # proj dim matches outer
+		else:
+			self.conv = nn.Conv1d(length, length, 1, padding='same')
 		self.causal = causal
 
 	def forward(self, x: torch.tensor):
@@ -88,13 +90,20 @@ class MixerBlock(nn.Module):
 
 class AutoencodingMixer(nn.Module):
 
-	def __init__(self, n_vocab, dim, depth, length, compression=4):
+	def __init__(self, n_vocab, dim, depth, length, compression=1, double_tokens=False):
 		super().__init__()
-		self.wte = nn.Embedding(n_vocab, dim)
+		self.double_tokens = double_tokens
+		if double_tokens:
+			self.wte = nn.Linear(n_vocab, dim)
+			self.n_vocab = n_vocab
+		else:
+			self.wte = nn.Embedding(n_vocab, dim)
+			
 		self.encoderblocks = nn.ModuleList(
 			[MixerBlock(
 				dim = dim,
 				length = length,
+				causal = True
 				)
 			for i in range(depth)]
 			).to(device)
@@ -102,7 +111,8 @@ class AutoencodingMixer(nn.Module):
 		self.decoderblocks = nn.ModuleList(
 			[MixerBlock(
 				dim = dim,
-				length = length
+				length = length, 
+				causal = True
 				)
 			for i in range(depth)]
 			)
@@ -117,6 +127,11 @@ class AutoencodingMixer(nn.Module):
 	def forward(self, input_ids, labels=None, **kwargs):
 		x = input_ids
 		x = x.to(device)
+		if self.double_tokens:
+			x_pairs = x.reshape(x.shape[0], x.shape[1]//2, 2)
+			# makes a two hot tensor
+			inputs = torch.nn.functional.one_hot(x_pairs[:, :, 0], self.n_vocab) + torch.nn.functional.one_hot(x_pairs[:, :, 1], self.n_vocab)
+
 		x = self.wte(x)
 		for block in self.encoderblocks:
 			x = block(x)
@@ -135,9 +150,81 @@ class AutoencodingMixer(nn.Module):
 		output = self.lm_head(x)
 		if labels.dim() > 2:
 			labels = rearrange(labels, 'b p t -> b (p t)')
+			if self.double_tokens:
+				labels = labels.reshape(labels.shape[0], labels.shape[1]//2, 2)
+
 		output = rearrange(output, 'b t e -> b e t')
 		loss = self.cel(output, labels)
 		return loss, output
+
+class AutoencodingTrixer(nn.Module):
+
+	def __init__(self, n_vocab, dim, depth, length, compression=1, double_tokens=False):
+		super().__init__()
+		self.double_tokens = double_tokens
+		if double_tokens:
+			self.wte = nn.Linear(n_vocab, dim)
+			self.n_vocab = n_vocab
+		else:
+			self.wte = nn.Embedding(n_vocab, dim)
+			
+		self.encoderblocks = nn.ModuleList(
+			[MixerBlock(
+				dim = dim,
+				length = length,
+				causal=True
+				)
+			for i in range(depth)]
+			).to(device)
+	
+		llama_config_kwargs = {
+			'hidden_size': dim,
+			'intermediate_size': 4*dim,
+			'num_hidden_layers': depth,
+			'num_attention_heads': 4,
+			'vocab_size': n_vocab
+		}
+		decoder_configuration = LlamaConfig(**llama_config_kwargs)
+		self.decoder = LlamaModel(decoder_configuration)
+		self.lm_head = nn.Linear(dim, n_vocab, bias=False)
+		self.cel = nn.CrossEntropyLoss()
+		self.tokenized_length = length
+		self.compression = compression > 1
+		if self.compression:
+			self.down = nn.Linear(dim, dim//compression)
+			self.up = nn.Linear(dim//compression, dim)
+
+	def forward(self, input_ids, labels=None, **kwargs):
+		x = input_ids
+		x = x.to(device)
+		if self.double_tokens:
+			x_pairs = x.reshape(x.shape[0], x.shape[1]//2, 2)
+			# makes a two hot tensor
+			inputs = torch.nn.functional.one_hot(x_pairs[:, :, 0], self.n_vocab) + torch.nn.functional.one_hot(x_pairs[:, :, 1], self.n_vocab)
+
+		x = self.wte(x)
+		for block in self.encoderblocks:
+			x = block(x)
+
+		encoder_embedding = x[:, -1, :].unsqueeze(1) # dim=[batch, token, hidden]
+		if self.compression:
+			encoder_embedding = self.down(encoder_embedding)
+			encoder_embedding = self.up(encoder_embedding)
+
+		encoder_embedding = encoder_embedding.repeat(1, self.tokenized_length, 1)
+		x = encoder_embedding
+		x = self.decoder(x)
+		
+		output = self.lm_head(x)
+		if labels.dim() > 2:
+			labels = rearrange(labels, 'b p t -> b (p t)')
+			if self.double_tokens:
+				labels = labels.reshape(labels.shape[0], labels.shape[1]//2, 2)
+
+		output = rearrange(output, 'b t e -> b e t')
+		loss = self.cel(output, labels)
+		return loss, output
+
 
 class MemoryMixer(nn.Module):
 
@@ -149,7 +236,7 @@ class MemoryMixer(nn.Module):
 				[MixerBlock(
 					dim = encoder_dim,
 					length = length,
-					causal=False
+					causal=True
 					)
 				for i in range(depth)]
 			).to(device)
@@ -237,7 +324,7 @@ class ProjMemoryMixer(nn.Module):
 				[MixerBlock(
 					dim = encoder_dim,
 					length = length,
-					causal=False
+					causal=True
 					)
 				for i in range(depth)]
 			).to(device)
