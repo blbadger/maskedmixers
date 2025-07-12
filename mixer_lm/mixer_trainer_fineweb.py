@@ -258,24 +258,25 @@ tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
 print ('Vocab size: ', n_vocab)
 
-tokenized_length = 1024
-encoder_dim = 256
-decoder_dim = 512
-n_layers = 16
-compression = 4
+tokenized_length = 512
+encoder_dim = 1024
+decoder_dim = 1024
+n_layers = 8
+compression = 1
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # mixer model initialization
 #model = MultiHeadedMixer(n_vocab, dim, 16, length=tokenized_length, heads=32).float().to(device)
 #model = LanguageMixer(n_vocab, dim, 1).float().to(device)
-#model = AutoencodingMixer(n_vocab, dim, 8, tokenized_length).float()
+model = AutoencodingMixer(n_vocab, encoder_dim, n_layers, tokenized_length).float()
 #model = MemoryMixer(n_vocab, dim//4, dim - dim//16, 16, tokenized_length, combination_dim='embedding').float()
 # model = MemoryTransformer(n_vocab, dim//2, dim-dim//8, 16, tokenized_length, combination_dim='embedding').float()
-model = ProjMemoryTransformer(n_vocab, encoder_dim, decoder_dim, n_layers, tokenized_length, compression=compression).float()
+#model = ProjMemoryTransformer(n_vocab, encoder_dim, decoder_dim, n_layers, tokenized_length, compression=compression).float()
 
-count_parameters(model)
-train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c1024"
-test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test-c1024"
+#count_parameters(model)
+print (model)
+train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
+test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
 
 def tokenization(example):
 	tokens = tokenizer.batch_encode_plus(
@@ -310,16 +311,16 @@ train_dataset = load_from_disk(train_path, keep_in_memory=None)
 test_dataset = load_from_disk(test_path, keep_in_memory=None)
 mlflow.end_run()
 
-output_dir = f'/home/bbadger/Desktop/fineweb_pmemory_transformer_e{encoder_dim}c{compression}_d{decoder_dim}_n{n_layers}_c{tokenized_length}_b16'
+output_dir = f'/home/bbadger/Desktop/finemath_autoencoder_h4_e{encoder_dim}c{compression}_d{decoder_dim}_n{n_layers}_c{tokenized_length}_b32'
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=3,
-	per_device_train_batch_size=16,
-	per_device_eval_batch_size=16,
+	per_device_train_batch_size=32,
+	per_device_eval_batch_size=32,
 	warmup_steps=500,
 	eval_steps=4000,
 	save_steps=8000,
 	gradient_accumulation_steps=1,
-	learning_rate=2e-4,
+	learning_rate=5e-4,
 	fp16=True,
 	eval_strategy='steps',
 	output_dir=output_dir,
