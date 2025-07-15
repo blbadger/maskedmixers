@@ -32,9 +32,8 @@ class MixerHead(nn.Module):
 			[nn.Conv1d(length, length, 1)
 			for i in range(n_heads)]
 			)
-
 		self.out_proj = nn.Linear(dim, dim)
-		self.softmax = nn.Softmax(dim=-1)		
+	
 
 	def forward(self, x: torch.tensor):
 
@@ -45,6 +44,7 @@ class MixerHead(nn.Module):
 		hidden_layer = []
 
 		for head in range(self.n_heads):
+			# print (head, x.shape) # b, t, e
 			projection = self.proj_head[head](x)
 			conv_projection = self.convs[head](projection)
 			hidden_layer.append(conv_projection)

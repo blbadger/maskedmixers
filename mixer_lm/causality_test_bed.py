@@ -121,6 +121,6 @@ device = 'cpu'
 model = AutoencodingMixer(n_vocab, dim, 2, tokenized_length).float().to(device)
 
 one = torch.tensor([[[1, 2, 3]]]).to(device)
-two = torch.tensor([[[1, 2, 4]]]).to(device)
+two = torch.tensor([[[1, 4, 3]]]).to(device)
 print (model(one, labels=one))
 print (model(two, labels=two))
