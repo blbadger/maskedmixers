@@ -45,8 +45,8 @@ class MixerHead(nn.Module):
 		hidden_layer = []
 
 		for head in range(self.n_heads):
-			projection = self.proj_head[i](x)
-			conv_projection = self.convs[i](projection)
+			projection = self.proj_head[head](x)
+			conv_projection = self.convs[head](projection)
 			hidden_layer.append(conv_projection)
 
 		# concatenate and project multi-headed output
@@ -56,7 +56,7 @@ class MixerHead(nn.Module):
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length, causal=True, n_heads=4):
+	def __init__(self, dim, length, causal=True, multiheaded=True, n_heads=1):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
@@ -64,7 +64,8 @@ class MixerBlock(nn.Module):
 		self.length = length
 		self.patch_ff = FeedForward(dim)
 		self.n_heads = n_heads
-		if n_heads > 1:
+		self.multiheaded = multiheaded
+		if multiheaded:
 			self.conv = MixerHead(dim, length, dim//n_heads, n_heads) # proj dim matches outer
 		else:
 			self.conv = nn.Conv1d(length, length, 1, padding='same')
@@ -74,7 +75,7 @@ class MixerBlock(nn.Module):
 		if x.dim() > 3:
 			x = rearrange(x, 'b p t f -> (b p) t f')
 
-		if self.causal and self.n_heads == 1:
+		if self.causal and not self.multiheaded:
 			# for CLM training, apply lower triangular mask to convolution weights
 			masked_conv = torch.tril(rearrange(self.conv.weight, 'f d p -> p f d'))
 			self.conv.weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()

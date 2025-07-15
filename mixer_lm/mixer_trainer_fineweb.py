@@ -311,7 +311,7 @@ train_dataset = load_from_disk(train_path, keep_in_memory=None)
 test_dataset = load_from_disk(test_path, keep_in_memory=None)
 mlflow.end_run()
 
-output_dir = f'/home/bbadger/Desktop/finemath_autoencoder_h4_e{encoder_dim}c{compression}_d{decoder_dim}_n{n_layers}_c{tokenized_length}_b32'
+output_dir = f'/home/bbadger/Desktop/finemath_autoencoder_h1_e{encoder_dim}c{compression}_d{decoder_dim}_n{n_layers}_c{tokenized_length}_b32'
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=3,
 	per_device_train_batch_size=32,
@@ -343,7 +343,7 @@ code_path = os.path.abspath(__file__)
 if not os.path.isdir(output_dir):
 	os.mkdir(output_dir)
 shutil.copy(code_path, output_dir)
-
+#torch.save(training_arguments, "/home/bbadger/Desktop/finemath_autoencoder_h4_e1024c1_d1024_n8_c512_b32/checkpoint-88000/training_args.bin")
 print (f'training begun: saving checkpoints in {output_dir}')
-#trainer.train("/home/bbadger/Desktop/finemath_autoencoding_mixer_1024_n8_b16_c1024/checkpoint-8000")
+#trainer.train("/home/bbadger/Desktop/finemath_autoencoder_h2_e1024c1_d1024_n8_c512_b32/checkpoint-136000")
 trainer.train()
