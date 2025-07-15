@@ -10,15 +10,48 @@ from datasets import load_dataset
 
 def FeedForward(dim, expansion_factor=4):
 	inner_dim = int(dim * expansion_factor)
-	dropout = nn.Dropout(p=0.05)
 	return nn.Sequential(
 		nn.Linear(dim, inner_dim),
-		#nn.Dropout(p=0.05),
 		nn.GELU(),
 		nn.Linear(inner_dim, dim)
 	)
 
 class MixerHead(nn.Module):
+
+	def __init__(self, dim, length, hidden_dim, n_heads):
+		super().__init__()
+		self.n_heads = n_heads
+		self.proj_head = nn.ModuleList(
+			[nn.Linear(dim, hidden_dim)
+			for i in range(n_heads)]
+			).to(device)
+
+		self.convs = nn.ModuleList(
+			[nn.Conv1d(length, length, 1)
+			for i in range(n_heads)]
+			)
+		self.out_proj = nn.Linear(dim, dim)
+	
+
+	def forward(self, x: torch.tensor):
+
+		for i in range(len(self.convs)):
+			masked_conv = torch.tril(rearrange(self.convs[i].weight, 'f d p -> p f d'))
+			self.convs[i].weight.data = rearrange(masked_conv, 'p f d -> f d p').contiguous()
+
+		hidden_layer = []
+
+		for head in range(self.n_heads):
+			projection = self.proj_head[head](x)
+			conv_projection = self.convs[head](projection)
+			hidden_layer.append(conv_projection)
+
+		# concatenate and project multi-headed output
+		hidden_layer = torch.cat(hidden_layer, dim=2)
+		hidden_layer = self.out_proj(hidden_layer)
+		return hidden_layer
+
+class OldMixerHead(nn.Module):
 
 	def __init__(self, dim, length, hidden_dim, n_heads):
 		super().__init__()
@@ -45,7 +78,7 @@ class MixerHead(nn.Module):
 
 		hidden_layer = []
 		for head in range(self.n_heads):
-			projection = self.proj_head[i](x)
+			#projection = self.proj_head[i](x) # no input projections
 			conv_projection = self.convs[i](x)
 			hidden_layer.append(conv_projection)
 
@@ -225,11 +258,11 @@ def tokenize_input(train_text, test_text):
 
 	return train_data, test_data
 
-tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_8k")
-tokenizer.pad_token = tokenizer.eos_token
-n_vocab = len(tokenizer)
 
 if __name__ == '__main__':
+	tokenizer = AutoTokenizer.from_pretrained("/home/bbadger/Desktop/tokenizer_fineweb_8k")
+	tokenizer.pad_token = tokenizer.eos_token
+	n_vocab = len(tokenizer)
 	# tokenizer = AutoTokenizer.from_pretrained("huggyllama/llama-7b")
 	print (tokenizer.is_fast)
 	tokenized_length = 3

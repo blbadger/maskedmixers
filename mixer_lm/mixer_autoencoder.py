@@ -44,7 +44,6 @@ class MixerHead(nn.Module):
 		hidden_layer = []
 
 		for head in range(self.n_heads):
-			# print (head, x.shape) # b, t, e
 			projection = self.proj_head[head](x)
 			conv_projection = self.convs[head](projection)
 			hidden_layer.append(conv_projection)
