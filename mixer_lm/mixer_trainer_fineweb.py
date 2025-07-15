@@ -311,7 +311,7 @@ train_dataset = load_from_disk(train_path, keep_in_memory=None)
 test_dataset = load_from_disk(test_path, keep_in_memory=None)
 mlflow.end_run()
 
-output_dir = f'/home/bbadger/Desktop/finemath_autoencoder_h1_e{encoder_dim}c{compression}_d{decoder_dim}_n{n_layers}_c{tokenized_length}_b32'
+output_dir = f'/home/bbadger/Desktop/finemath_autoencoder_h2_e{encoder_dim}c{compression}_d{decoder_dim}_n{n_layers}_c{tokenized_length}_b32'
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=3,
 	per_device_train_batch_size=32,

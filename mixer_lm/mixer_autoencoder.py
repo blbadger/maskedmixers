@@ -56,7 +56,7 @@ class MixerHead(nn.Module):
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length, causal=True, multiheaded=True, n_heads=1):
+	def __init__(self, dim, length, causal=True, multiheaded=True, n_heads=2):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
