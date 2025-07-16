@@ -55,7 +55,7 @@ class MixerHead(nn.Module):
 
 class MixerBlock(nn.Module):
 
-	def __init__(self, dim, length, causal=True, multiheaded=True, n_heads=2):
+	def __init__(self, dim, length, causal=True, n_heads=4):
 		super().__init__()
 		self.patch_layernorm = nn.LayerNorm(dim)
 		self.seq_layernorm = nn.LayerNorm(dim)
@@ -63,8 +63,9 @@ class MixerBlock(nn.Module):
 		self.length = length
 		self.patch_ff = FeedForward(dim)
 		self.n_heads = n_heads
-		self.multiheaded = multiheaded
-		if multiheaded:
+		self.multiheaded = False
+		if n_heads > 0:
+			self.multiheaded = True
 			self.conv = MixerHead(dim, length, dim//n_heads, n_heads) # proj dim matches outer
 		else:
 			self.conv = nn.Conv1d(length, length, 1, padding='same')
@@ -229,7 +230,7 @@ class AutoencodingTrixer(nn.Module):
 
 class MemoryMixer(nn.Module):
 
-	def __init__(self, n_vocab, encoder_dim, dim, depth, length, compression=4, combination_dim='token'):
+	def __init__(self, n_vocab, encoder_dim, dim, depth, length, compression=4, combination_dim='token', n_heads=0):
 		super().__init__()
 		self.wte = nn.Embedding(n_vocab, encoder_dim)
 		self.decoder_wte = nn.Embedding(n_vocab, dim)
@@ -237,7 +238,8 @@ class MemoryMixer(nn.Module):
 				[MixerBlock(
 					dim = encoder_dim,
 					length = length,
-					causal=True
+					causal=True,
+					n_heads = n_heads
 					)
 				for i in range(depth)]
 			).to(device)
@@ -249,7 +251,8 @@ class MemoryMixer(nn.Module):
 					[MixerBlock(
 						dim = dim,
 						length = length+1,
-						causal=True
+						causal=True,
+						n_heads = 0 # no heads for decoder
 						)
 					for i in range(depth)]
 				).to(device)
@@ -262,7 +265,8 @@ class MemoryMixer(nn.Module):
 					[MixerBlock(
 						dim = dim + encoder_dim//compression,
 						length = length,
-						causal=True
+						causal=True,
+						n_heads = 0 # no heads for decoder
 						)
 					for i in range(depth)]
 				).to(device)

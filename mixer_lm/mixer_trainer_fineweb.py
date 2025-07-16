@@ -258,25 +258,25 @@ tokenizer.pad_token = tokenizer.eos_token
 n_vocab = len(tokenizer)
 print ('Vocab size: ', n_vocab)
 
-tokenized_length = 512
+tokenized_length = 1024
 encoder_dim = 1024
 decoder_dim = 1024
-n_layers = 8
-compression = 1
+n_layers = 16
+compression = 4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # mixer model initialization
 #model = MultiHeadedMixer(n_vocab, dim, 16, length=tokenized_length, heads=32).float().to(device)
 #model = LanguageMixer(n_vocab, dim, 1).float().to(device)
-model = AutoencodingMixer(n_vocab, encoder_dim, n_layers, tokenized_length).float()
-#model = MemoryMixer(n_vocab, dim//4, dim - dim//16, 16, tokenized_length, combination_dim='embedding').float()
+#model = AutoencodingMixer(n_vocab, encoder_dim, n_layers, tokenized_length).float()
+model = MemoryMixer(n_vocab, decoder_dim//4, decoder_dim - decoder_dim//16, 16, tokenized_length, combination_dim='embedding', n_heads=4).float()
 # model = MemoryTransformer(n_vocab, dim//2, dim-dim//8, 16, tokenized_length, combination_dim='embedding').float()
 #model = ProjMemoryTransformer(n_vocab, encoder_dim, decoder_dim, n_layers, tokenized_length, compression=compression).float()
 
 #count_parameters(model)
 print (model)
-train_path = "/home/bbadger/Desktop/finemath-4-tokenized-train-c512-lpad-8k"
-test_path = "/home/bbadger/Desktop/finemath-4-tokenized-test-c512-lpad-8k"
+train_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-train-c1024"
+test_path = "/home/bbadger/Desktop/fineweb-edu-tokenized-test-c1024"
 
 def tokenization(example):
 	tokens = tokenizer.batch_encode_plus(
@@ -311,11 +311,11 @@ train_dataset = load_from_disk(train_path, keep_in_memory=None)
 test_dataset = load_from_disk(test_path, keep_in_memory=None)
 mlflow.end_run()
 
-output_dir = f'/home/bbadger/Desktop/finemath_autoencoder_h2_e{encoder_dim}c{compression}_d{decoder_dim}_n{n_layers}_c{tokenized_length}_b32'
+output_dir = f'/home/bbadger/Desktop/fineweb_ememory_mixer{encoder_dim}c{compression}_d{decoder_dim}_n{n_layers}_c{tokenized_length}_b16'
 training_arguments = transformers.TrainingArguments(
 	num_train_epochs=3,
-	per_device_train_batch_size=32,
-	per_device_eval_batch_size=32,
+	per_device_train_batch_size=16,
+	per_device_eval_batch_size=16,
 	warmup_steps=500,
 	eval_steps=4000,
 	save_steps=8000,
@@ -345,5 +345,5 @@ if not os.path.isdir(output_dir):
 shutil.copy(code_path, output_dir)
 #torch.save(training_arguments, "/home/bbadger/Desktop/finemath_autoencoder_h4_e1024c1_d1024_n8_c512_b32/checkpoint-88000/training_args.bin")
 print (f'training begun: saving checkpoints in {output_dir}')
-#trainer.train("/home/bbadger/Desktop/finemath_autoencoder_h2_e1024c1_d1024_n8_c512_b32/checkpoint-136000")
+#trainer.train("/home/bbadger/Desktop/finemath_autoencoder_h2_e1024c1_d1024_n8_c512_b32/checkpoint-104000")
 trainer.train()
